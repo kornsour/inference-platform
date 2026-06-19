@@ -1,0 +1,24 @@
+# Tell Prometheus (Operator) to scrape vLLM's /metrics so KEDA and Grafana
+# have the inference SLIs. Requires the Prometheus Operator (PodMonitor CRD).
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: vllm-metrics
+  namespace: inference
+  labels:
+    release: kube-prometheus-stack   # match your Prometheus' podMonitorSelector
+spec:
+  selector:
+    matchLabels:
+      serving.kserve.io/inferenceservice: qwen-vllm
+  podMetricsEndpoints:
+    - port: http                     # the port serving /metrics; adjust to runtime
+      path: /metrics
+      interval: 15s
+# Key series to dashboard in Grafana:
+#   vllm:time_to_first_token_seconds   (histogram → TTFT p50/p95)
+#   vllm:time_per_output_token_seconds (inter-token latency)
+#   vllm:gpu_cache_usage_perc          (KV-cache utilization)
+#   vllm:num_requests_waiting          (queue depth)
+#   vllm:generation_tokens_total       (throughput → rate())
+# SLO suggestion: 95% of requests with TTFT < 1s over a rolling 5m window.

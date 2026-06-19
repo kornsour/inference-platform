@@ -1,0 +1,46 @@
+# KEDA ScaledObject — the centerpiece of the capstone.
+#
+# Scales the inference deployment on INFERENCE-AWARE signals pulled from
+# Prometheus, NOT CPU. Two triggers shown; start with one and add the second.
+#
+#   1. KV-cache utilization (vllm:gpu_cache_usage_perc) — the memory pressure
+#      that actually caps concurrency during decode.
+#   2. Pending-request queue depth (vllm:num_requests_waiting) — rising queue
+#      means TTFT is about to degrade; scale before the SLO breaks.
+#
+# Prereqs: KEDA installed; Prometheus reachable at the serverAddress below;
+# the target Deployment name matches what KServe created for the predictor.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: qwen-vllm-scaler
+  namespace: inference
+spec:
+  scaleTargetRef:
+    # Name of the Deployment KServe generates for the predictor. Confirm with
+    # `kubectl get deploy -n inference`.
+    name: qwen-vllm-predictor
+  minReplicaCount: 1
+  maxReplicaCount: 4
+  cooldownPeriod: 120          # don't thrash; decode workloads are bursty
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleDown:
+          stabilizationWindowSeconds: 300
+  triggers:
+    - type: prometheus
+      metadata:
+        serverAddress: http://prometheus-operated.monitoring.svc:9090
+        metricName: kv_cache_utilization
+        # Average KV-cache usage across replicas; scale out past 70% so we keep
+        # headroom for prefill spikes before the cache thrashes.
+        query: avg(vllm:gpu_cache_usage_perc{service="qwen-vllm"})
+        threshold: "0.70"
+    - type: prometheus
+      metadata:
+        serverAddress: http://prometheus-operated.monitoring.svc:9090
+        metricName: requests_waiting
+        # Total requests queued for prefill. >5 queued sustained = scale out.
+        query: sum(vllm:num_requests_waiting{service="qwen-vllm"})
+        threshold: "5"

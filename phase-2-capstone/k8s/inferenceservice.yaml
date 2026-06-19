@@ -1,0 +1,39 @@
+# KServe InferenceService running an open-weights model on the vLLM runtime.
+#
+# Prereqs: KServe installed on the cluster, a GPU node pool, and (for newer
+# KServe) the vLLM ServingRuntime registered. Adjust the model, image tag,
+# and GPU resource name (nvidia.com/gpu) to your cluster.
+#
+# Newer KServe versions offer a dedicated `LLMInferenceService` CRD that also
+# handles prefill/decode disaggregation — prefer it if available. This uses the
+# broadly-available InferenceService + vLLM runtime form.
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: qwen-vllm
+  namespace: inference
+  annotations:
+    # Let KEDA own scaling instead of Knative/KServe autoscaler so we can scale
+    # on inference-aware external metrics (see keda-scaledobject.yaml).
+    serving.kserve.io/autoscalerClass: external
+spec:
+  predictor:
+    minReplicas: 1
+    maxReplicas: 4
+    model:
+      modelFormat:
+        name: vLLM
+      runtime: kserve-vllmserver        # the registered vLLM ServingRuntime
+      # An open-weights, small model so a single GPU is enough to start.
+      storageUri: hf://Qwen/Qwen2.5-1.5B-Instruct
+      args:
+        - --max-model-len=4096
+        - --gpu-memory-utilization=0.90
+      resources:
+        limits:
+          nvidia.com/gpu: "1"
+        requests:
+          nvidia.com/gpu: "1"
+      # vLLM exposes Prometheus metrics on the model port at /metrics:
+      #   vllm:time_to_first_token_seconds, vllm:num_requests_waiting,
+      #   vllm:gpu_cache_usage_perc  <-- the KV-cache utilization scaling signal
