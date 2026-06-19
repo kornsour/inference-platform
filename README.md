@@ -2,7 +2,7 @@
 
 A self-directed learning project to build genuine, hands-on depth in **LLM inference serving** — the platform layer underneath generative AI models: GPU scheduling, high-throughput serving engines, inference-aware autoscaling, and the observability and economics of running models at scale.
 
-It is structured as a 6-month program aligned to a specific target role: **Principal Engineering Manager, GitHub Copilot AI Inference Platform**. The full strategy, gap analysis, and milestone tracking live in [`docs/project-plan.md`](docs/project-plan.md).
+It is structured as a 6-month program aligned to two target roles on the same platform: **Staff Engineering Manager, Copilot API** (primary, more attainable) and **Principal Engineering Manager, AI Inference Platform** (stretch). The full strategy, gap analysis, and milestone tracking live in [`docs/project-plan.md`](docs/project-plan.md); the role crosswalk is in [`docs/role-comparison.md`](docs/role-comparison.md).
 
 ## Why this exists
 
@@ -18,6 +18,8 @@ The honest framing: ~70% of the target role is platform engineering and leadersh
 
 Supporting docs:
 - [`docs/project-plan.md`](docs/project-plan.md) — the full plan (gap analysis, roadmap, risks)
+- [`docs/role-comparison.md`](docs/role-comparison.md) — Staff EM vs. Principal EM crosswalk + coverage map
+- [`docs/role.md`](docs/role.md) — the Staff EM job posting
 - [`docs/glossary.md`](docs/glossary.md) — inference serving vocabulary, the literacy target for Phase 1
 
 ## How to use it

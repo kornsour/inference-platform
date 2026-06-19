@@ -36,6 +36,12 @@ This is also where existing EKS / GitOps / Prometheus skills give a large head s
 - [ ] **Instrument everything**: Prometheus scrape ([`k8s/podmonitor.yaml`](k8s/podmonitor.yaml)) + Grafana dashboards for TTFT, inter-token latency, throughput, queue depth, GPU utilization. Define one SLO and wire one alert.
 - [ ] **Load test** and capture saturation behavior — see [`loadtest/locustfile.py`](loadtest/locustfile.py).
 
+### Ship real code + treat it like a product platform (Staff EM credibility)
+- [ ] Build at least one genuine code component in a **named language** — a token-aware router or **custom KEDA external scaler in Go**, or extend the Python benchmark harness. Not just YAML.
+- [ ] Land **one small PR to an OSS inference project** (vLLM / KServe / KEDA) and link it from the write-up.
+- [ ] **GitOps** (Argo CD or Flux) for declarative deploys; **CI/CD** (lint → test → build → deploy preview); **IaC** (Terraform or Helm); an automated **smoke/integration test** after each deploy. → *"engineering excellence through automation, tooling, and standardization across deployment, testing, and operations."*
+- [ ] Note in the write-up that the stack (KServe, KEDA, Prometheus, Envoy) is **CNCF** — a preferred qualification you can claim.
+
 ### Reinforce alongside the build
 - [ ] Read disaggregated prefill/decode (NVIDIA Dynamo, llm-d). If budget allows, run prefill and decode on separate pools.
 - [ ] Add a **canary or shadow** deployment path so a new model version takes a slice of traffic before full rollout.
@@ -44,6 +50,7 @@ This is also where existing EKS / GitOps / Prometheus skills give a large head s
 ### Milestone
 - [ ] A **working demo** you can screen-share: model serving, autoscaling on an inference signal, live dashboards.
 - [ ] A **public write-up** — fill in [`WRITEUP-template.md`](WRITEUP-template.md): architecture, load-test results, cost-per-million-tokens, design decisions, next steps.
+- [ ] At least **one real code component** in the repo + **one OSS PR** linked, and the platform **deploys via GitOps/CI/CD** reproducibly from a clean clone.
 
 ## Getting a cluster + GPU cheaply
 
