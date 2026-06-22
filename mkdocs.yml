@@ -1,0 +1,98 @@
+site_name: AI Inference
+site_description: >-
+  A self-directed program to build hands-on depth in LLM inference serving —
+  GPU scheduling, serving engines, inference-aware autoscaling, and the
+  observability and economics of running models at scale.
+site_author: kornsour
+site_url: https://kornsour.github.io/ai-inference/
+
+repo_name: kornsour/ai-inference
+repo_url: https://github.com/kornsour/ai-inference
+edit_uri: edit/main/
+
+# Use the repo root as the docs directory so README.md is the homepage and the
+# existing docs/ and phase-*/ markdown render in place (mkdocs-same-dir plugin
+# lifts the usual "docs_dir == project dir" restriction).
+docs_dir: .
+site_dir: site
+
+theme:
+  name: material
+  icon:
+    logo: material/chip
+    repo: fontawesome/brands/github
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.top
+    - navigation.indexes
+    - toc.follow
+    - content.code.copy
+    - content.action.edit
+    - search.suggest
+    - search.highlight
+
+plugins:
+  - search
+  - same-dir
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - footnotes
+  - toc:
+      permalink: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+nav:
+  - Home: README.md
+  - Strategy:
+      - Project Plan: docs/project-plan.md
+      - Role Comparison: docs/role-comparison.md
+      - Role Posting: docs/role.md
+  - Glossary: docs/glossary.md
+  - Resources: docs/resources.md
+  - Phase 1 — Foundations:
+      - Overview: phase-1-foundations/README.md
+      - Serve Locally: phase-1-foundations/serve-local.md
+      - Brief Template: phase-1-foundations/brief-template.md
+  - Phase 2 — Capstone:
+      - Overview: phase-2-capstone/README.md
+      - Write-up Template: phase-2-capstone/WRITEUP-template.md
+      - Runbook Template: phase-2-capstone/runbook-template.md
+  - Phase 3 — Positioning:
+      - Overview: phase-3-positioning/README.md
+      - Interview Prep: phase-3-positioning/interview-prep.md
+      - Leadership Stories: phase-3-positioning/leadership-stories.md
+      - Positioning Statement: phase-3-positioning/positioning-statement.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/kornsour/ai-inference
