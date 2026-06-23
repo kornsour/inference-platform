@@ -46,14 +46,37 @@ Most current open models (`qwen3.5`, `gemma4`) are **reasoning models**: they st
 
 The fix: count *every* generated token, reasoning or content. From a serving standpoint that's the correct definition anyway — every decoded token consumes GPU compute and grows the KV cache, whether or not the user ever sees it. Reasoning models, by generating far more tokens per request, put *more* pressure on the exact bottlenecks (KV cache, decode bandwidth) that Phase 2 is about.
 
+## Quality comparison
+
+Speed is only half the picture — a fast model that answers badly is worthless. `benchmark.py --quality` runs a small categorized prompt suite (factual recall, reasoning/math, instruction-following, coding, conciseness, summarization) across several models, captures each answer for human review, and optionally scores them with a **blinded LLM judge** against per-prompt rubrics.
+
+Example run, `qwen3.5:4b` vs `gemma4:e4b`, judged by `qwen2.5:14b-instruct`:
+
+| Model | Mean judge score (1–5) | Notes |
+| --- | ---: | --- |
+| `gemma4:e4b` | **4.17** | Consistent across categories |
+| `qwen3.5:4b` | 2.83 | Strong on factual/instruction/coding (4–5); fails conciseness |
+
+The interesting finding is *why* qwen3.5:4b loses points: on the simplest prompts ("What does TTFT stand for?") it **over-thinks** — it spends its entire token budget in the reasoning channel and never emits a final answer. That's a real usability cost of reasoning models, and a measurement trap: the harness flags these as `⚠ truncated/no-answer` rather than silently scoring an empty answer as wrong.
+
+Two lessons that carry into platform work:
+
+- **Reasoning tokens are real load.** A model that thinks for 1,500 tokens to answer "what does TTFT mean" consumes 1,500 tokens of decode compute and KV cache. Quality and serving cost are coupled — over-thinking is both a UX *and* a capacity problem.
+- **LLM-as-judge is a noisy proxy, not ground truth.** The judge has its own biases; the harness blinds it (answers relabeled and shuffled) and always writes the full answers to a report so a human can verify the ranking.
+
 ## Reproduce
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-# point at any OpenAI-compatible endpoint (Ollama shown)
+
+# performance: latency + throughput sweep
 python benchmark.py --base-url http://localhost:11434/v1 \
   --model qwen3.5:4b --concurrency 1 2 4 --max-tokens 128
+
+# quality: side-by-side answers + optional blinded LLM judge
+python benchmark.py --base-url http://localhost:11434/v1 --quality \
+  --models qwen3.5:4b gemma4:e4b --judge qwen2.5:14b-instruct
 ```
 
 See [`serve-local.md`](serve-local.md) for standing up the endpoint.
