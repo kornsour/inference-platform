@@ -2,26 +2,28 @@
 
 **Goal:** close the literacy gap. By the end, you can explain — without notes — how a request becomes tokens, where the time and cost go, and why inference autoscaling is fundamentally different from web-service autoscaling.
 
+**Status: Complete.** Literacy gap closed, model served locally with measured TTFT and tokens/sec, and the one-page brief written.
+
 ## Checklist
 
 ### Learn (read + take notes against [`../docs/glossary.md`](../docs/glossary.md))
-- [ ] Inference request lifecycle: prefill (compute-bound) vs. decode (memory-bound), and why that drives disaggregated serving.
-- [ ] KV cache & batching: PagedAttention, continuous batching, KV-cache utilization as the scaling signal.
-- [ ] Metrics that matter: TTFT, inter-token latency, throughput, and their trade-offs against cost.
-- [ ] Engine landscape: vLLM vs. TensorRT-LLM vs. SGLang — understand trade-offs, don't memorize benchmarks.
-- [ ] GPU economics: why accelerators dominate cost; how quantization and batching change the math.
+- [x] Inference request lifecycle: prefill (compute-bound) vs. decode (memory-bound), and why that drives disaggregated serving.
+- [x] KV cache & batching: PagedAttention, continuous batching, KV-cache utilization as the scaling signal.
+- [x] Metrics that matter: TTFT, inter-token latency, throughput, and their trade-offs against cost.
+- [x] Engine landscape: vLLM vs. TensorRT-LLM vs. SGLang — understand trade-offs, don't memorize benchmarks.
+- [x] GPU economics: why accelerators dominate cost; how quantization and batching change the math.
 
 ### Resources
-- [ ] vLLM docs + blog (PagedAttention, continuous batching) — the canonical start.
-- [ ] NVIDIA Dynamo docs (disaggregated serving, autoscaling).
-- [ ] KServe docs — anchors the Phase 2 build.
-- [ ] Chip Huyen, *Designing Machine Learning Systems* (serving + experiment-to-production chapters).
-- [ ] Latent Space podcast; Baseten / Fireworks / Together engineering blogs.
+- [x] vLLM docs + blog (PagedAttention, continuous batching) — the canonical start.
+- [x] NVIDIA Dynamo docs (disaggregated serving, autoscaling).
+- [x] KServe docs — anchors the Phase 2 build.
+- [x] Chip Huyen, *Designing Machine Learning Systems* (serving + experiment-to-production chapters).
+- [x] Latent Space podcast; Baseten / Fireworks / Together engineering blogs.
 
 ### Milestone
-- [ ] **Serve a model locally** behind an OpenAI-compatible endpoint — see [`serve-local.md`](serve-local.md).
-- [ ] **Measure TTFT and tokens/sec** under a few concurrency levels — use [`benchmark.py`](benchmark.py).
-- [ ] **Write the one-page brief** "How inference serving works and why it is hard" — fill in [`brief-template.md`](brief-template.md).
+- [x] **Serve a model locally** behind an OpenAI-compatible endpoint — see [`serve-local.md`](serve-local.md).
+- [x] **Measure TTFT and tokens/sec** under a few concurrency levels — use [`benchmark.py`](benchmark.py).
+- [x] **Write the one-page brief** "How inference serving works and why it is hard" — fill in [`brief-template.md`](brief-template.md).
 
 ## Success signal
 
