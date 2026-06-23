@@ -1,0 +1,36 @@
+# Option A wiring: point the in-cluster `mock-vllm` Service name at a real vLLM
+# running on the Windows GPU box over the LAN. Because we reuse the Service name
+# and labels, the ServiceMonitor, ScaledObject, dashboard, and load tests all
+# target real vLLM unchanged.
+#
+# A Service with NO selector + a manually-managed Endpoints object lets a
+# ClusterIP front an external IP. vLLM serves both the API and /metrics on 8000,
+# so Prometheus scrapes the real engine's metrics.
+#
+# >>> Set the IP below to your Windows box's LAN address. <<<
+apiVersion: v1
+kind: Service
+metadata:
+  name: mock-vllm
+  namespace: inference
+  labels:
+    app: mock-vllm        # so the existing ServiceMonitor still selects it
+spec:
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: mock-vllm          # must equal the Service name
+  namespace: inference
+  labels:
+    app: mock-vllm
+subsets:
+  - addresses:
+      - ip: 192.168.1.50   # <-- CHANGE ME: Windows box LAN IP (ipconfig)
+    ports:
+      - name: http
+        port: 8000

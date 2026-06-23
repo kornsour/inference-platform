@@ -1,0 +1,29 @@
+# In-cluster load generator. Unlike `kubectl port-forward` (which pins to a
+# single pod), hitting the ClusterIP Service load-balances across all replicas —
+# so scale-out actually drains the queue. 30 parallel pods, each looping
+# streaming requests for ~80s.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mock-load
+  namespace: inference
+spec:
+  parallelism: 30
+  completions: 30
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 120
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: load
+          image: curlimages/curl:8.10.1
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              end=$(( $(date +%s) + 80 ))
+              while [ $(date +%s) -lt $end ]; do
+                curl -s -m 60 -X POST http://mock-vllm.inference.svc:8000/v1/chat/completions \
+                  -H 'content-type: application/json' \
+                  -d '{"messages":[{"role":"user","content":"hi"}],"max_tokens":200,"stream":true}' >/dev/null
+              done
