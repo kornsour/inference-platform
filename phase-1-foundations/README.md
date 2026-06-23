@@ -2,7 +2,7 @@
 
 **Goal:** close the literacy gap. By the end, you can explain — without notes — how a request becomes tokens, where the time and cost go, and why inference autoscaling is fundamentally different from web-service autoscaling.
 
-**Status: Complete.** Literacy gap closed, model served locally with measured TTFT and tokens/sec, and the one-page brief written.
+**Status: In progress.** Model served locally with measured TTFT and tokens/sec; the one-page brief is still to be written.
 
 ## Checklist
 
@@ -26,7 +26,7 @@
 
 - [x] **Serve a model locally** behind an OpenAI-compatible endpoint — see [`serve-local.md`](serve-local.md).
 - [x] **Measure TTFT and tokens/sec** under a few concurrency levels — use [`benchmark.py`](benchmark.py).
-- [x] **Write the one-page brief** "How inference serving works and why it is hard" — fill in [`brief-template.md`](brief-template.md).
+- [ ] **Write the one-page brief** "How inference serving works and why it is hard" — fill in [`brief-template.md`](brief-template.md).
 
 ## Success signal
 
