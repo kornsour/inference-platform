@@ -5,13 +5,28 @@ a single GPU can't: **real multi-replica GPU autoscaling** — KEDA scaling vLLM
 pods across two physical GPUs on the queue/KV-cache signal. That completes the
 capstone story end to end, for $0.
 
+## Machines & roles
+
+| Machine | Role | GPU | k3s | Setup status (2026-06-23) |
+|---------|------|-----|-----|---------------------------|
+| **Windows PC** | k3s **server** + GPU worker; always-on, hosts the API | _TBD (plan assumed 12 GB)_ | server | :material-timer-sand: being set up — [node doc](../../docs/cluster-node-windows-pc.md) |
+| **Windows laptop** (`KAISER-LAPTOP`) | k3s **agent** + GPU worker | RTX 4070 Laptop, **8 GB** | agent | :material-check: prepped (WSL2 + toolkit + mirrored-net verified); :material-timer-sand: awaiting join — [node doc](../../docs/cluster-node-kaiser-laptop.md) |
+| **MacBook Pro** | client only — `kubectl` / `helm`, GitOps/CI | — | — | n/a |
+
+> **Model sizing:** size the deployed model to the **smaller** card. The laptop is
+> **8 GB**, so target 8 GB even if the PC has more VRAM.
+
+Per-machine hardware/network/state lives in the node docs:
+[Windows PC](../../docs/cluster-node-windows-pc.md) ·
+[KAISER-LAPTOP](../../docs/cluster-node-kaiser-laptop.md).
+
 ## Topology
 
 ```text
    Mac (this repo)            Windows PC                 Windows laptop
    kubectl + helm   ──API──▶  WSL2 Ubuntu                WSL2 Ubuntu
    GitOps / CI                k3s SERVER + GPU worker     k3s AGENT + GPU worker
-                             (12 GB GPU)                 (gaming GPU)
+                             (always-on, hosts API)      (RTX 4070 Laptop, 8 GB)
                                    ▲                            │
                                    └──────── LAN (k3s) ─────────┘
 ```
@@ -127,7 +142,8 @@ Once both nodes show `nvidia.com/gpu: 1`, you have a real GPU cluster. Then:
 
 1. Install **KEDA** and **kube-prometheus-stack** (Helm, same as the local stack).
 2. Apply [`../k8s/inferenceservice.yaml`](../k8s/inferenceservice.yaml) (KServe +
-   vLLM) with a 12 GB-friendly model — one replica lands on each GPU node.
+   vLLM) with an **8 GB-friendly** model (size to the smaller card — the laptop's
+   8 GB) — one replica lands on each GPU node.
 3. Apply [`../k8s/keda-scaledobject.yaml`](../k8s/keda-scaledobject.yaml) and
    [`../k8s/podmonitor.yaml`](../k8s/podmonitor.yaml) — the **same** objects
    validated locally, now scaling **real vLLM across two GPUs**.
@@ -138,7 +154,8 @@ Once both nodes show `nvidia.com/gpu: 1`, you have a real GPU cluster. Then:
 ## Reality check
 
 - **Different GPUs are fine** — Kubernetes schedules by `nvidia.com/gpu` count,
-  not model. Size the model to the *smaller* of the two cards.
+  not model. Size the model to the *smaller* of the two cards (**8 GB** here — the
+  laptop).
 - **Laptop sleeping** → its node goes `NotReady` and pods reschedule; fine for
   demos, just keep it awake during a run.
 - **If WSL2 networking fights you**, fall back to single-GPU

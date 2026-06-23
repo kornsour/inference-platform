@@ -78,9 +78,14 @@ schedules the vLLM pod onto the GPU and Prometheus scrapes it in-cluster.
 
 ## Two GPUs? Build a real cluster
 
-If you have **two** GPU machines (e.g. a PC + a gaming laptop), you can join both
-as worker nodes and get genuine **multi-replica GPU scale-out** — the one thing a
-single GPU can't show. Full step-by-step in [`diy-cluster.md`](diy-cluster.md).
+If you have **two** GPU machines, you can join both as worker nodes and get genuine
+**multi-replica GPU scale-out** — the one thing a single GPU can't show. This
+project uses a Windows **PC** (k3s server) plus the **RTX 4070 8 GB laptop**
+(`KAISER-LAPTOP`, k3s agent). Full step-by-step in [`diy-cluster.md`](diy-cluster.md);
+per-machine state in the node docs
+([PC](../../docs/cluster-node-windows-pc.md) ·
+[laptop](../../docs/cluster-node-kaiser-laptop.md)). **Size models to 8 GB**, the
+smaller card.
 
 ## Recommendation
 
