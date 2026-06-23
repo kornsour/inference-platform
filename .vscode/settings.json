@@ -1,0 +1,19 @@
+{
+  // Use the project's phase-1 virtualenv (.venv) as the default interpreter so
+  // Pylance resolves `openai` and other deps. Create it with:
+  //   python3 -m venv .venv && .venv/bin/pip install -r phase-1-foundations/requirements.txt
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+  "python.terminal.activateEnvironment": true,
+  // Note: Pylance already excludes dot-dirs by default (.venv, .venv-docs) and
+  // ignores non-Python trees like site/, so no custom analysis.exclude needed.
+  // MkDocs (Material) uses Python-object YAML tags in mkdocs.yml; teach the
+  // YAML language server about them so they aren't flagged as "unresolved tag".
+  "yaml.customTags": [
+    "!!python/name:material.extensions.emoji.twemoji",
+    "!!python/name:material.extensions.emoji.to_svg",
+    "!!python/name:pymdownx.superfences.fence_code_format",
+    "!ENV scalar",
+    "!ENV sequence",
+    "!relative scalar"
+  ]
+}

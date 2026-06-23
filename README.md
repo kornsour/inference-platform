@@ -37,6 +37,7 @@ The honest framing: ~70% of the target role is platform engineering and leadersh
 | **3** | 5–6 | Scale, leadership, and application — positioning and interview prep | [`phase-3-positioning/`](phase-3-positioning/) |
 
 Supporting docs:
+
 - [`docs/project-plan.md`](docs/project-plan.md) — the full plan (gap analysis, roadmap, risks)
 - [`docs/role-comparison.md`](docs/role-comparison.md) — Staff EM vs. Principal EM crosswalk + coverage map
 - [`docs/role.md`](docs/role.md) — the Staff EM job posting
@@ -64,6 +65,6 @@ mkdocs serve   # live preview at http://127.0.0.1:8000
 
 ## Progress
 
-- [ ] **Phase 1** — Can explain prefill vs. decode and TTFT without notes; model served locally with measured TTFT / tokens-per-second; one-page brief written.
+- [x] **Phase 1** — Can explain prefill vs. decode and TTFT without notes; model served locally with measured TTFT / tokens-per-second; one-page brief written.
 - [ ] **Phase 2** — Model on Kubernetes via KServe/Ray Serve + vLLM; KEDA autoscaling on an inference signal; Prometheus/Grafana dashboards; load test + public write-up.
 - [ ] **Phase 3** — Scale & capacity study; reframed resume + positioning statement; leadership stories; ≥2 informational conversations; application submitted.
