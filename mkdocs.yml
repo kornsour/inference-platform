@@ -71,11 +71,7 @@ markdown_extensions:
       emoji_generator: !!python/name:material.extensions.emoji.to_svg
 
 nav:
-  - Home: README.md
-  - Strategy:
-      - Project Plan: docs/project-plan.md
-      - Role Comparison: docs/role-comparison.md
-      - Role Posting: docs/role.md
+  - Home: index.md
   - Glossary: docs/glossary.md
   - Resources: docs/resources.md
   - Phase 1 — Foundations:
@@ -87,11 +83,16 @@ nav:
       - Overview: phase-2-capstone/README.md
       - Write-up Template: phase-2-capstone/WRITEUP-template.md
       - Runbook Template: phase-2-capstone/runbook-template.md
-  - Phase 3 — Positioning:
-      - Overview: phase-3-positioning/README.md
-      - Interview Prep: phase-3-positioning/interview-prep.md
-      - Leadership Stories: phase-3-positioning/leadership-stories.md
-      - Positioning Statement: phase-3-positioning/positioning-statement.md
+
+# Keep private career-strategy material out of the published site entirely
+# (not just unlinked from the nav). README.md is excluded because it carries the
+# candid gap analysis / role targeting; the public homepage is index.md.
+exclude_docs: |
+  /README.md
+  /docs/project-plan.md
+  /docs/role-comparison.md
+  /docs/role.md
+  /phase-3-positioning/
 
 extra:
   social:
