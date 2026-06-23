@@ -4,7 +4,13 @@
 
 This is also where existing EKS / GitOps / Prometheus skills give a large head start over candidates who know models but not platforms. Lead with that.
 
-**Status: Not started.** This is the capstone — scaffolding and reference manifests are in place; the build, load test, and write-up are still to be done.
+**Status: In progress.** The autoscaling control plane is **built and validated locally** (no GPU) on a `kind` cluster — KEDA scaled the deployment 1→5 on the queue-depth signal, with Grafana dashboards, an SLO, and alerts. Draft artifacts are in place; real-GPU serving numbers are next.
+
+- [`local/`](local/) — the runnable local stack (mock vLLM + KEDA + Prometheus/Grafana), one command: `make up`
+- [`WRITEUP.md`](WRITEUP.md) — portfolio write-up (draft; local results in, GPU numbers TODO)
+- [`runbook.md`](runbook.md) — operational runbook (draft)
+- [`loadtest/`](loadtest/) — formalized load + capture (`scale-demo.sh`, `incluster-load.yaml`)
+- [`gpu-node/`](gpu-node/README.md) — plan for using a **local Windows 12 GB GPU** instead of renting
 
 ## Architecture
 
@@ -34,10 +40,10 @@ This is also where existing EKS / GitOps / Prometheus skills give a large head s
 ### Build
 
 - [ ] Deploy an open-weights model on Kubernetes via **KServe** (or Ray Serve) with **vLLM** as the engine — see [`k8s/inferenceservice.yaml`](k8s/inferenceservice.yaml).
-- [ ] **Autoscale with KEDA** driven by TTFT p95 or KV-cache utilization from Prometheus, **not CPU** — see [`k8s/keda-scaledobject.yaml`](k8s/keda-scaledobject.yaml). *This is the single most important thing to get working.*
+- [x] **Autoscale with KEDA** driven by TTFT p95 or KV-cache utilization from Prometheus, **not CPU** *(validated locally: 1→5 on queue depth)* — see [`k8s/keda-scaledobject.yaml`](k8s/keda-scaledobject.yaml). *This is the single most important thing to get working.*
 - [ ] Add an **inference gateway** (Envoy AI Gateway) for token-aware rate limiting and model routing.
-- [ ] **Instrument everything**: Prometheus scrape ([`k8s/podmonitor.yaml`](k8s/podmonitor.yaml)) + Grafana dashboards for TTFT, inter-token latency, throughput, queue depth, GPU utilization. Define one SLO and wire one alert.
-- [ ] **Load test** and capture saturation behavior — see [`loadtest/locustfile.py`](loadtest/locustfile.py).
+- [x] **Instrument everything**: Prometheus scrape + Grafana dashboards for TTFT, inter-token latency, throughput, queue depth, GPU utilization. Define one SLO and wire one alert. *(done locally; dashboard + TTFT-p95 SLO + alerts)*
+- [x] **Load test** and capture saturation behavior — see [`loadtest/`](loadtest/). *(captured; scale-out + queue/TTFT timeline)*
 
 ### Ship real code + treat it like a product platform (Staff EM credibility)
 

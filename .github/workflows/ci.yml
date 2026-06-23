@@ -1,0 +1,63 @@
+name: Phase 2 CI
+
+# Lint → validate → build for the inference-platform manifests and code. This is
+# the CI half of the GitOps checklist item; the CD half is Argo CD syncing
+# phase-2-capstone/ to the cluster (see phase-2-capstone/README.md).
+on:
+  push:
+    paths:
+      - "phase-2-capstone/**"
+      - "phase-1-foundations/**.py"
+      - ".github/workflows/ci.yml"
+      - ".yamllint.yaml"
+  pull_request:
+    paths:
+      - "phase-2-capstone/**"
+      - "phase-1-foundations/**.py"
+      - ".github/workflows/ci.yml"
+      - ".yamllint.yaml"
+
+jobs:
+  manifests:
+    name: Lint & validate manifests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: yamllint
+        run: pipx run yamllint -c .yamllint.yaml phase-2-capstone
+      - name: kubeconform (schema validation)
+        run: |
+          curl -sSL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz | tar xz kubeconform
+          # CRDs (KEDA ScaledObject, Prometheus ServiceMonitor/PrometheusRule,
+          # KServe InferenceService) aren't in the core schema set — skip those,
+          # but strictly validate the built-in resources (Deployment, Service…).
+          ./kubeconform -strict -ignore-missing-schemas -summary \
+            phase-2-capstone/local/manifests \
+            phase-2-capstone/k8s \
+            phase-2-capstone/gpu-node/external-vllm.yaml \
+            phase-2-capstone/loadtest/incluster-load.yaml
+
+  image:
+    name: Lint & build mock image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: hadolint (Dockerfile)
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: phase-2-capstone/local/mock-vllm/Dockerfile
+      - name: docker build (smoke)
+        run: docker build -t mock-vllm:ci phase-2-capstone/local/mock-vllm
+
+  python:
+    name: Lint & compile Python
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: ruff (style — non-blocking)
+        run: pipx run ruff check phase-2-capstone/local/mock-vllm/app.py phase-1-foundations/benchmark.py || true
+      - name: compile check
+        run: python -m py_compile phase-2-capstone/local/mock-vllm/app.py phase-1-foundations/benchmark.py

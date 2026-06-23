@@ -1,0 +1,41 @@
+# KEDA ScaledObject — the centerpiece, validated locally against the mock.
+#
+# Scales on INFERENCE-AWARE signals from Prometheus, not CPU:
+#   1. queue depth  (vllm:num_requests_waiting) — requests waiting for a slot
+#   2. KV-cache util (vllm:gpu_cache_usage_perc) — decode memory pressure
+#
+# These are the exact metric names a real vLLM emits, so this object is reused
+# unchanged when the GPU InferenceService replaces the mock (see ../../k8s/).
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: mock-vllm-scaler
+  namespace: inference
+spec:
+  scaleTargetRef:
+    name: mock-vllm
+  minReplicaCount: 1           # min 1, not 0: KEDA can't wake a scaled-to-zero
+  maxReplicaCount: 5           # Deployment on a queue metric (no pod = no metric);
+                               # scale-to-zero would need an HTTP activator.
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleDown:
+          # Don't thrash: wait for sustained calm before scaling back in.
+          stabilizationWindowSeconds: 60
+  triggers:
+    - type: prometheus
+      metadata:
+        serverAddress: http://kube-prometheus-stack-prometheus.monitoring.svc:9090
+        metricName: requests_waiting
+        # Total queued across all replicas; >3 sustained = scale out.
+        query: sum(vllm:num_requests_waiting)
+        threshold: "3"
+    - type: prometheus
+      metadata:
+        serverAddress: http://kube-prometheus-stack-prometheus.monitoring.svc:9090
+        metricName: kv_cache_util
+        # Hottest replica's KV-cache usage; past 70% we're near the concurrency
+        # ceiling, so add capacity before TTFT degrades.
+        query: max(vllm:gpu_cache_usage_perc)
+        threshold: "0.7"

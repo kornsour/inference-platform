@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mock-vllm
+  namespace: inference
+  labels:
+    app: mock-vllm
+spec:
+  selector:
+    app: mock-vllm
+  ports:
+    - name: http          # serves both the OpenAI API and /metrics
+      port: 8000
+      targetPort: http
