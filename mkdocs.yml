@@ -74,6 +74,10 @@ nav:
   - Home: index.md
   - Glossary: docs/glossary.md
   - Resources: docs/resources.md
+  - DIY GPU Cluster:
+      - Runbook (all machines): phase-2-capstone/gpu-node/diy-cluster.md
+      - Node — Windows PC (k3s server): docs/cluster-node-windows-pc.md
+      - Node — KAISER-LAPTOP (k3s agent): docs/cluster-node-kaiser-laptop.md
   - Phase 1 — Foundations:
       - Overview: phase-1-foundations/README.md
       - Serve Locally: phase-1-foundations/serve-local.md

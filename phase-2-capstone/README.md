@@ -10,7 +10,7 @@ This is also where existing EKS / GitOps / Prometheus skills give a large head s
 - [`WRITEUP.md`](WRITEUP.md) — portfolio write-up (draft; local results in, GPU numbers TODO)
 - [`runbook.md`](runbook.md) — operational runbook (draft)
 - [`loadtest/`](loadtest/) — formalized load + capture (`scale-demo.sh`, `incluster-load.yaml`)
-- [`gpu-node/`](gpu-node/README.md) — plan for using a **local Windows 12 GB GPU** instead of renting
+- [`gpu-node/`](gpu-node/README.md) — plan for using **local Windows GPUs** instead of renting, incl. the [DIY two-GPU cluster](gpu-node/diy-cluster.md) (Windows PC k3s server + the 8 GB RTX 4070 laptop)
 
 ## Architecture
 

@@ -13,10 +13,10 @@ it to, because the autoscaling control loop is already proven with the mock.
 
 | Goal | Single 12 GB GPU? |
 | --- | --- |
-| Real vLLM: PagedAttention, continuous batching, real KV-cache metrics | ✅ yes |
-| Real TTFT / throughput / cost-per-token numbers for the write-up | ✅ yes |
-| Validate the SAME ScaledObject/metrics against real vLLM (scale 0→1) | ✅ yes |
-| Multi-replica **GPU** scale-out (N pods each on a GPU) | ❌ needs ≥2 GPUs |
+| Real vLLM: PagedAttention, continuous batching, real KV-cache metrics | :material-check: yes |
+| Real TTFT / throughput / cost-per-token numbers for the write-up | :material-check: yes |
+| Validate the SAME ScaledObject/metrics against real vLLM (scale 0→1) | :material-check: yes |
+| Multi-replica **GPU** scale-out (N pods each on a GPU) | :material-close: needs ≥2 GPUs |
 
 The mock already covered the last row (KEDA 1→5 on the queue signal). So the
 honest, strong story is a **hybrid**: *control loop validated on the mock at N
@@ -78,9 +78,14 @@ schedules the vLLM pod onto the GPU and Prometheus scrapes it in-cluster.
 
 ## Two GPUs? Build a real cluster
 
-If you have **two** GPU machines (e.g. a PC + a gaming laptop), you can join both
-as worker nodes and get genuine **multi-replica GPU scale-out** — the one thing a
-single GPU can't show. Full step-by-step in [`diy-cluster.md`](diy-cluster.md).
+If you have **two** GPU machines, you can join both as worker nodes and get genuine
+**multi-replica GPU scale-out** — the one thing a single GPU can't show. This
+project uses a Windows **PC** (k3s server) plus the **RTX 4070 8 GB laptop**
+(`KAISER-LAPTOP`, k3s agent). Full step-by-step in [`diy-cluster.md`](diy-cluster.md);
+per-machine state in the node docs
+([PC](../../docs/cluster-node-windows-pc.md) ·
+[laptop](../../docs/cluster-node-kaiser-laptop.md)). **Size models to 8 GB**, the
+smaller card.
 
 ## Recommendation
 
