@@ -37,6 +37,7 @@ The honest framing: ~70% of the target role is platform engineering and leadersh
 | **3** | 5–6 | Scale, leadership, and application — positioning and interview prep | [`phase-3-positioning/`](phase-3-positioning/) |
 
 Supporting docs:
+
 - [`docs/project-plan.md`](docs/project-plan.md) — the full plan (gap analysis, roadmap, risks)
 - [`docs/role-comparison.md`](docs/role-comparison.md) — Staff EM vs. Principal EM crosswalk + coverage map
 - [`docs/role.md`](docs/role.md) — the Staff EM job posting

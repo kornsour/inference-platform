@@ -292,8 +292,11 @@ def judge_item(client, judge_model, item, answers, seed):
     if data and isinstance(data.get("scores"), dict):
         for lab, info in data["scores"].items():
             if lab in labels and isinstance(info, dict):
+                raw = info.get("score")
+                if raw is None:
+                    continue
                 try:
-                    score = int(info.get("score"))
+                    score = int(raw)
                 except (TypeError, ValueError):
                     continue
                 out[labels[lab].model] = {

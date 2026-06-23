@@ -7,6 +7,7 @@
 ## Checklist
 
 ### Learn (read + take notes against [`../docs/glossary.md`](../docs/glossary.md))
+
 - [x] Inference request lifecycle: prefill (compute-bound) vs. decode (memory-bound), and why that drives disaggregated serving.
 - [x] KV cache & batching: PagedAttention, continuous batching, KV-cache utilization as the scaling signal.
 - [x] Metrics that matter: TTFT, inter-token latency, throughput, and their trade-offs against cost.
@@ -14,6 +15,7 @@
 - [x] GPU economics: why accelerators dominate cost; how quantization and batching change the math.
 
 ### Resources
+
 - [x] vLLM docs + blog (PagedAttention, continuous batching) — the canonical start.
 - [x] NVIDIA Dynamo docs (disaggregated serving, autoscaling).
 - [x] KServe docs — anchors the Phase 2 build.
@@ -21,6 +23,7 @@
 - [x] Latent Space podcast; Baseten / Fireworks / Together engineering blogs.
 
 ### Milestone
+
 - [x] **Serve a model locally** behind an OpenAI-compatible endpoint — see [`serve-local.md`](serve-local.md).
 - [x] **Measure TTFT and tokens/sec** under a few concurrency levels — use [`benchmark.py`](benchmark.py).
 - [x] **Write the one-page brief** "How inference serving works and why it is hard" — fill in [`brief-template.md`](brief-template.md).
