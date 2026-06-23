@@ -81,6 +81,7 @@ nav:
   - Phase 1 — Foundations:
       - Overview: phase-1-foundations/README.md
       - Serve Locally: phase-1-foundations/serve-local.md
+      - Results: phase-1-foundations/results.md
       - Brief Template: phase-1-foundations/brief-template.md
   - Phase 2 — Capstone:
       - Overview: phase-2-capstone/README.md

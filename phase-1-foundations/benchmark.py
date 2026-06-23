@@ -45,8 +45,18 @@ def run_one(client: OpenAI, model: str, max_tokens: int) -> RequestResult:
         stream=True,
     )
     for chunk in stream:
-        delta = chunk.choices[0].delta.content if chunk.choices else None
-        if delta:
+        if not chunk.choices:
+            continue
+        delta = chunk.choices[0].delta
+        # Count any generated token, including the "thinking" tokens that
+        # reasoning models (Qwen3, gemma) stream on a separate channel. From a
+        # serving standpoint every decoded token costs compute + KV cache, so
+        # all of them count toward TTFT and throughput — otherwise a thinking
+        # model that spends its whole budget reasoning reads as 0 tokens/sec.
+        piece = (delta.content
+                 or getattr(delta, "reasoning_content", None)
+                 or getattr(delta, "reasoning", None))
+        if piece:
             if ttft is None:
                 ttft = time.perf_counter() - start
             tokens += 1
