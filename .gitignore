@@ -8,3 +8,6 @@ venv/
 # MkDocs
 site/
 .venv-docs/
+
+# Phase 2 mock test venv
+**/.venv-mock/

@@ -1,0 +1,21 @@
+# Tell the kube-prometheus-stack Prometheus to scrape the mock's /metrics.
+# The `release: kube-prometheus-stack` label matches the default
+# serviceMonitorSelector that chart installs with.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: mock-vllm
+  namespace: inference
+  labels:
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app: mock-vllm
+  namespaceSelector:
+    matchNames:
+      - inference
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 10s

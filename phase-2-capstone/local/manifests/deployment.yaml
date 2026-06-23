@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: inference
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mock-vllm
+  namespace: inference
+  labels:
+    app: mock-vllm
+spec:
+  replicas: 1            # KEDA owns this from here — see scaledobject.yaml
+  selector:
+    matchLabels:
+      app: mock-vllm
+  template:
+    metadata:
+      labels:
+        app: mock-vllm
+    spec:
+      containers:
+        - name: mock-vllm
+          image: mock-vllm:local
+          imagePullPolicy: IfNotPresent     # image is side-loaded via `kind load`
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: CAPACITY            # concurrent "decode slots" per replica
+              value: "4"
+            - name: GEN_TOKENS
+              value: "200"
+            - name: TPOT_SECONDS        # time per output token
+              value: "0.05"
+            - name: PREFILL_SECONDS
+              value: "0.30"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: "500m"
+              memory: 256Mi

@@ -1,0 +1,8 @@
+# Single-node kind cluster for the local control-plane prototype. No GPU — the
+# mock-vllm workload stands in for a real engine so KEDA, Prometheus, and Grafana
+# can be wired and validated before any GPU spend.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: ai-inference
+nodes:
+  - role: control-plane

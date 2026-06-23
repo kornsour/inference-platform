@@ -4,7 +4,7 @@
 
 This is also where existing EKS / GitOps / Prometheus skills give a large head start over candidates who know models but not platforms. Lead with that.
 
-**Status: Not started.** This is the capstone — scaffolding and reference manifests are in place; the build, load test, and write-up are still to be done.
+**Status: In progress.** Building local-first (no GPU): [`local/`](local/) has a metrics-faithful mock vLLM, KEDA ScaledObject, and kube-prometheus-stack wiring to validate the autoscaling control loop on a `kind` cluster before moving the workload to a rented GPU. Load test and write-up still to come.
 
 ## Architecture
 
