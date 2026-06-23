@@ -44,11 +44,13 @@ Run real vLLM on the Windows box and treat it as an external endpoint the local
 `kind` cluster routes to. Least setup; gets you numbers today.
 
 1. **Windows:** install WSL2 + the NVIDIA CUDA driver for WSL, then in Ubuntu:
+
    ```bash
    pip install vllm
    vllm serve Qwen/Qwen2.5-3B-Instruct --gpu-memory-utilization 0.90 \
      --max-model-len 4096 --host 0.0.0.0 --port 8000
    ```
+
 2. Allow port 8000 through Windows Firewall; note the LAN IP (`ipconfig`).
 3. **Cluster:** point a headless Service at it so manifests/dashboards are
    unchanged — see [`external-vllm.yaml`](external-vllm.yaml) (set the IP).

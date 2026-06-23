@@ -46,17 +46,22 @@ portproxy + flannel quirks) — at that point prefer the single-GPU
 ### Both Windows machines (PC and laptop)
 
 1. **Enable WSL2 + Ubuntu**
+
    ```powershell
    wsl --install -d Ubuntu        # then set up the Ubuntu user
    wsl --update
    ```
+
 2. **NVIDIA driver for WSL** — install the latest **Game Ready / Studio driver on
    Windows** (it includes WSL CUDA support). Do **not** install a Linux GPU
    driver inside WSL. Verify inside Ubuntu:
+
    ```bash
    nvidia-smi          # must list your GPU
    ```
+
 3. **NVIDIA Container Toolkit** (lets containers use the GPU):
+
    ```bash
    curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
    curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
@@ -64,6 +69,7 @@ portproxy + flannel quirks) — at that point prefer the single-GPU
      sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
    sudo apt-get update && sudo apt-get install -y nvidia-container-toolkit
    ```
+
 4. **Mirrored networking** (see above), then `wsl --shutdown` from PowerShell.
 5. **Firewall** — allow the k3s ports between the two machines (see table below).
 
