@@ -13,10 +13,10 @@ it to, because the autoscaling control loop is already proven with the mock.
 
 | Goal | Single 12 GB GPU? |
 | --- | --- |
-| Real vLLM: PagedAttention, continuous batching, real KV-cache metrics | ✅ yes |
-| Real TTFT / throughput / cost-per-token numbers for the write-up | ✅ yes |
-| Validate the SAME ScaledObject/metrics against real vLLM (scale 0→1) | ✅ yes |
-| Multi-replica **GPU** scale-out (N pods each on a GPU) | ❌ needs ≥2 GPUs |
+| Real vLLM: PagedAttention, continuous batching, real KV-cache metrics | :material-check: yes |
+| Real TTFT / throughput / cost-per-token numbers for the write-up | :material-check: yes |
+| Validate the SAME ScaledObject/metrics against real vLLM (scale 0→1) | :material-check: yes |
+| Multi-replica **GPU** scale-out (N pods each on a GPU) | :material-close: needs ≥2 GPUs |
 
 The mock already covered the last row (KEDA 1→5 on the queue signal). So the
 honest, strong story is a **hybrid**: *control loop validated on the mock at N
