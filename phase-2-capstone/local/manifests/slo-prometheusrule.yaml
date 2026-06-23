@@ -1,0 +1,51 @@
+# SLO + alerting for the inference platform.
+#
+# SLI:  TTFT p95 over a rolling 5m window.
+# SLO:  95% of requests served with TTFT < 1s.
+# The `release: kube-prometheus-stack` label makes the Prometheus Operator pick
+# this rule up (matches the default ruleSelector).
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: inference-slo
+  namespace: inference
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: inference.sli
+      interval: 15s
+      rules:
+        # Recording rules — precompute the SLIs so dashboards and alerts share
+        # one definition and stay cheap to evaluate.
+        - record: job:vllm_ttft_p95_seconds:5m
+          expr: histogram_quantile(0.95, sum(rate(vllm:time_to_first_token_seconds_bucket[5m])) by (le))
+        - record: job:vllm_ttft_p50_seconds:5m
+          expr: histogram_quantile(0.50, sum(rate(vllm:time_to_first_token_seconds_bucket[5m])) by (le))
+        - record: job:vllm_tokens_per_second:1m
+          expr: sum(rate(vllm:generation_tokens_total[1m]))
+
+    - name: inference.slo
+      rules:
+        # Primary SLO alert: TTFT p95 over budget for a sustained window.
+        - alert: InferenceTTFTSLOBreach
+          expr: job:vllm_ttft_p95_seconds:5m > 1
+          for: 5m
+          labels:
+            severity: warning
+            service: mock-vllm
+          annotations:
+            summary: "Inference TTFT p95 over SLO (>1s)"
+            description: "TTFT p95 has been {{ $value | humanizeDuration }} for 5m (SLO: <1s). The autoscaler should be adding replicas; if it isn't, check KEDA and the Prometheus triggers."
+
+        # Saturation early-warning: queue persistently deep means TTFT is about
+        # to breach even if it hasn't yet.
+        - alert: InferenceQueueBacklog
+          expr: sum(vllm:num_requests_waiting) > 5
+          for: 2m
+          labels:
+            severity: warning
+            service: mock-vllm
+          annotations:
+            summary: "Inference request queue backing up"
+            description: "{{ $value }} requests waiting for a decode slot for 2m — scale-out signal."

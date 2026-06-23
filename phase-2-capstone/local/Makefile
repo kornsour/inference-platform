@@ -4,7 +4,7 @@ IMAGE   ?= mock-vllm:local
 .PHONY: up cluster keda monitoring image deploy status watch port-forward load grafana prometheus down
 
 ## up: create the cluster and bring up the whole stack
-up: cluster keda monitoring image deploy
+up: cluster keda monitoring image deploy dashboard
 	@echo ""
 	@echo "Stack is up. In separate terminals:"
 	@echo "  make port-forward   # expose the service on :8000"
@@ -34,6 +34,13 @@ image:
 
 deploy:
 	kubectl apply -f manifests/
+
+## dashboard: load the Grafana dashboard as a sidecar-watched ConfigMap
+dashboard:
+	kubectl create configmap inference-dashboard -n monitoring \
+		--from-file=inference-dashboard.json=grafana/inference-dashboard.json \
+		--dry-run=client -o yaml | kubectl apply -f -
+	kubectl label configmap inference-dashboard grafana_dashboard=1 -n monitoring --overwrite
 
 ## status / watch: see the autoscaler and replicas
 status:

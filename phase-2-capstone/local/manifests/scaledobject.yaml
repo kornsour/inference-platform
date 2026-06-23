@@ -14,14 +14,14 @@ metadata:
 spec:
   scaleTargetRef:
     name: mock-vllm
-  minReplicaCount: 1
-  maxReplicaCount: 5
-  pollingInterval: 10          # check the triggers every 10s (snappy for a demo)
-  cooldownPeriod: 60           # wait 60s of calm before scaling back to min
+  minReplicaCount: 1           # min 1, not 0: KEDA can't wake a scaled-to-zero
+  maxReplicaCount: 5           # Deployment on a queue metric (no pod = no metric);
+                               # scale-to-zero would need an HTTP activator.
   advanced:
     horizontalPodAutoscalerConfig:
       behavior:
         scaleDown:
+          # Don't thrash: wait for sustained calm before scaling back in.
           stabilizationWindowSeconds: 60
   triggers:
     - type: prometheus

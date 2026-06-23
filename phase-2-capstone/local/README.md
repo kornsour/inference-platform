@@ -48,7 +48,13 @@ Suggested demo: start at 1 replica, ramp locust to ~20 users, and watch `make wa
 | [`manifests/service.yaml`](manifests/service.yaml) | Service exposing the API + `/metrics` |
 | [`manifests/servicemonitor.yaml`](manifests/servicemonitor.yaml) | Prometheus scrape config |
 | [`manifests/scaledobject.yaml`](manifests/scaledobject.yaml) | **KEDA ScaledObject — the centerpiece** |
+| [`manifests/slo-prometheusrule.yaml`](manifests/slo-prometheusrule.yaml) | SLO recording rules + alerts (TTFT p95 < 1s) |
+| [`grafana/inference-dashboard.json`](grafana/inference-dashboard.json) | Dashboard: TTFT, ITL, throughput, queue, KV-cache, replicas |
 | [`Makefile`](Makefile) | One-command bring-up / teardown |
+
+## Validated
+
+Run locally on a `kind` cluster (no GPU): driving ~3 req/s of 200-token requests past one replica's capacity, the queue-depth signal rose well above threshold and **KEDA scaled the deployment 1 → 5 replicas** (HPA event: `SuccessfulRescale … reason: external metric … above target`). TTFT p95 blew past the 1s SLO under saturation (firing `InferenceTTFTSLOBreach`), then recovered as replicas absorbed the load. The Grafana dashboard auto-imports via the kube-prometheus-stack sidecar.
 
 ## Moving to GPU
 

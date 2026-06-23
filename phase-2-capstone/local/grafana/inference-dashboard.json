@@ -1,0 +1,117 @@
+{
+  "title": "LLM Inference Platform",
+  "uid": "llm-inference",
+  "tags": ["inference", "vllm", "kserve"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "refresh": "10s",
+  "time": { "from": "now-15m", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {},
+        "hide": 0
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "TTFT (p50 / p95) vs SLO",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "table", "calcs": ["last", "max"] } },
+      "targets": [
+        { "refId": "A", "expr": "job:vllm_ttft_p50_seconds:5m", "legendFormat": "TTFT p50" },
+        { "refId": "B", "expr": "job:vllm_ttft_p95_seconds:5m", "legendFormat": "TTFT p95" }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Inter-token latency (p95)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "expr": "histogram_quantile(0.95, sum(rate(vllm:time_per_output_token_seconds_bucket[5m])) by (le))", "legendFormat": "ITL p95" }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Throughput (generated tokens/sec)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "expr": "job:vllm_tokens_per_second:1m", "legendFormat": "tokens/s" }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Queue depth (requests waiting)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 3 } ] }
+        },
+        "overrides": []
+      },
+      "targets": [
+        { "refId": "A", "expr": "sum(vllm:num_requests_waiting)", "legendFormat": "waiting" },
+        { "refId": "B", "expr": "sum(vllm:num_requests_running)", "legendFormat": "running" }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "KV-cache utilization vs scale threshold",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "max": 1,
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 0.7 } ] }
+        },
+        "overrides": []
+      },
+      "targets": [
+        { "refId": "A", "expr": "max(vllm:gpu_cache_usage_perc)", "legendFormat": "KV-cache util (max)" }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Replicas (KEDA autoscaling)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "fieldConfig": { "defaults": { "unit": "short", "min": 0 }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list" } },
+      "targets": [
+        { "refId": "A", "expr": "sum(kube_deployment_status_replicas{namespace=\"inference\", deployment=\"mock-vllm\"})", "legendFormat": "replicas" }
+      ]
+    }
+  ]
+}
