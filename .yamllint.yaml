@@ -1,0 +1,10 @@
+# Relaxed yamllint for Kubernetes manifests — heavy inline comments and long
+# lines are expected, so we don't penalize length or document-start.
+extends: relaxed
+rules:
+  line-length: disable
+  document-start: disable
+  comments:
+    min-spaces-from-content: 1
+  truthy:
+    allowed-values: ["true", "false", "on"]   # GitHub Actions uses `on:`

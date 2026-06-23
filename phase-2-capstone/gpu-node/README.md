@@ -74,11 +74,17 @@ schedules the vLLM pod onto the GPU and Prometheus scrapes it in-cluster.
 > More setup (WSL2 GPU, device plugin, cross-host networking) but it's the real
 > capstone artifact and still $0.
 
+## Two GPUs? Build a real cluster
+
+If you have **two** GPU machines (e.g. a PC + a gaming laptop), you can join both
+as worker nodes and get genuine **multi-replica GPU scale-out** — the one thing a
+single GPU can't show. Full step-by-step in [`diy-cluster.md`](diy-cluster.md).
+
 ## Recommendation
 
 Do **Option A first** — get real vLLM numbers into [`../WRITEUP.md`](../WRITEUP.md)
-this week. Then, if you want the full story, graduate to **Option B**. Rent a
-multi-GPU cloud node only if you specifically want to show *N-replica GPU* scale-
-out — optional, since the mock already demonstrates the control loop.
+this week. If you have two GPU boxes, the [DIY two-GPU cluster](diy-cluster.md)
+is the highest-value next step (real N-replica GPU autoscaling, $0). Rent a
+multi-GPU cloud node only if neither local path works out.
 
 [NVIDIA Container Toolkit]: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
