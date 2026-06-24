@@ -17,7 +17,9 @@ This is also where existing EKS / GitOps / Prometheus skills give a large head s
 - :material-check: **Custom Go KEDA external scaler** — composite KV-cache + queue-depth signal in one trigger ([`keda-inference-scaler/`](keda-inference-scaler/README.md)).
 - :material-check: **CI + GitOps** — GitHub Actions validates manifests + builds/tests the Go scaler; Argo CD `Application`s declare the platform ([`gitops/`](../gitops/README.md)).
 - :material-progress-clock: **OSS PR** — prepared and ready to submit ([oss-contribution.md](oss-contribution.md)); submitting is yours to do.
-- :material-timer-sand: Inference **gateway** (Envoy AI Gateway) still ahead.
+- :material-check: **One-command bootstrap / teardown** ([`bootstrap/`](../bootstrap/README.md)) — reconstitutes the whole stack (incl. the WSL2 workarounds) for demos; **Argo CD is live** on the cluster syncing the platform.
+- :material-progress-clock: **Envoy AI Gateway** — automated in the bootstrap + route manifests written; live bring-up is the one layer still pending (needs helm; it's the most overlay-sensitive).
+- :material-check: **Tech-stack rationale** — every tool + language justified (why / trade-off / benefit) in [tech-stack.md](tech-stack.md).
 
 - [`local/`](local/) — the runnable local stack (mock vLLM + KEDA + Prometheus/Grafana), one command: `make up`
 - [`gpu-node/`](gpu-node/README.md) — the **DIY two-GPU cluster** (two 8 GB consumer GPUs as k3s GPU workers) serving real vLLM at $0, incl. the [runbook](gpu-node/diy-cluster.md)
@@ -55,7 +57,7 @@ This is also where existing EKS / GitOps / Prometheus skills give a large head s
 
 - [x] Deploy an open-weights model on Kubernetes via **KServe** with **vLLM** as the engine — done both ways: a [plain Deployment](gpu-node/vllm-plain.yaml) *and* a [KServe `InferenceService`](gpu-node/kserve-inferenceservice.yaml) (RawDeployment + huggingface/vLLM runtime). Numbers + the operational comparison in [real-gpu-results.md](gpu-node/real-gpu-results.md); trade-offs in [architecture-decisions.md](architecture-decisions.md).
 - [x] **Autoscale with KEDA** driven by TTFT p95 or KV-cache utilization from Prometheus, **not CPU** *(validated locally 1→5; now **live on the GPU cluster** — a ScaledObject autoscaling vLLM on queue-depth + KV-cache, HPA reading `0/3, 0/700m`, not CPU)* — see [`k8s/keda-scaledobject.yaml`](k8s/keda-scaledobject.yaml) and [`gpu-node/keda-scaledobject-gpu.yaml`](gpu-node/keda-scaledobject-gpu.yaml). *This is the single most important thing to get working.*
-- [ ] Add an **inference gateway** (Envoy AI Gateway) for token-aware rate limiting and model routing.
+- [ ] Add an **inference gateway** (Envoy AI Gateway) for token-aware rate limiting and model routing. *(automated in the [bootstrap](../bootstrap/README.md) with route manifests written; live bring-up pending — needs helm and it's the most overlay-sensitive layer.)*
 - [x] **Instrument everything**: Prometheus scrape + Grafana dashboards for TTFT, inter-token latency, throughput, queue depth, GPU utilization. Define one SLO and wire one alert. *(done locally; dashboard + TTFT-p95 SLO + alerts — and now live on the DIY cluster: cross-node GPU + vLLM metrics in one Prometheus)*
 - [x] **Load test** and capture saturation behavior — see [`loadtest/`](loadtest/). *(captured locally; plus real-GPU load tests on the 2-GPU cluster — [real-gpu-results.md](gpu-node/real-gpu-results.md))*
 

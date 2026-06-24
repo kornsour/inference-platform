@@ -1,0 +1,59 @@
+# Envoy AI Gateway in front of vLLM: an OpenAI-compatible front door that can do
+# model-name routing, token-aware rate limiting, and (with more backends) failover.
+# CRD shapes track the Envoy AI Gateway version — adjust if the API has moved.
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: envoy-ai-gateway
+spec:
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: vllm-gateway
+  namespace: inference
+spec:
+  gatewayClassName: envoy-ai-gateway
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+---
+# The model-aware route: requests are dispatched by the model name they ask for.
+apiVersion: aigateway.envoyproxy.io/v1alpha1
+kind: AIGatewayRoute
+metadata:
+  name: vllm-route
+  namespace: inference
+spec:
+  schema:
+    name: OpenAI
+  parentRefs:
+    - name: vllm-gateway
+      kind: Gateway
+      group: gateway.networking.k8s.io
+  rules:
+    - matches:
+        - headers:
+            - type: Exact
+              name: x-ai-eg-model
+              value: qwen
+      backendRefs:
+        - name: vllm-backend
+---
+# Declares the self-hosted vLLM Service as an OpenAI-schema backend.
+apiVersion: aigateway.envoyproxy.io/v1alpha1
+kind: AIServiceBackend
+metadata:
+  name: vllm-backend
+  namespace: inference
+spec:
+  schema:
+    name: OpenAI
+  backendRef:
+    name: vllm-qwen
+    kind: Service
+    group: ""
+    port: 8000
