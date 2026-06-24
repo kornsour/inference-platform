@@ -110,7 +110,41 @@ The pair tells the capacity-planning story: pick a model small enough to be comp
 and you get throughput but no natural scale signal; size up and the **KV cache becomes the
 constraint** that the inference-aware autoscaler is built to react to.
 
-## Run 3 — KServe InferenceService — _planned_
+## Run 3 — Two-GPU load-balanced scale-out
+
+One Qwen2.5-1.5B replica **per physical GPU** (pod anti-affinity, `gpu-memory-utilization
+0.80` to fit the smaller desktop card), fronted by an **external nginx round-robin LB**
+across the two node IPs — [`vllm-2gpu.yaml`](vllm-2gpu.yaml).
+
+!!! note "Why an external LB instead of a ClusterIP Service"
+    The textbook approach is a ClusterIP Service load-balancing across the two replica
+    pods. But cross-node ClusterIP DNATs to a pod IP on the other node, which rides the
+    pod overlay — **down under WSL2 mirrored mode** (see
+    [troubleshooting log](../../docs/cluster-troubleshooting-log.md)). With `hostNetwork`
+    pods binding node IPs on real userspace sockets, an nginx LB targeting those node IPs
+    load-balances over plain LAN TCP. This is the same `hostNetwork` workaround applied to
+    the traffic plane.
+
+Driving 32 concurrent requests through the LB, **both GPUs served in parallel**:
+
+| GPU | Concurrent (running) | Tokens produced | Throughput |
+|---|---:|---:|---:|
+| Desktop RTX 3060 Ti | ~13 | 57,771 | 1,204 tok/s |
+| Laptop RTX 4070 | ~19 | 55,515 | 1,157 tok/s |
+| **Aggregate** | 32 | 113,286 | **2,360 tok/s** |
+
+Client-side through the LB: **2,357 tok/s, TTFT p50 47 ms / p95 64 ms**, 0 errors.
+
+!!! success "The scale-out result"
+    nginx round-robin split requests ~evenly, and **both physical GPUs processed traffic
+    concurrently** — aggregate throughput roughly **doubled** versus a single replica at the
+    same per-replica load (~1,200 tok/s/card). This is genuine multi-GPU scale-out: two
+    8 GB consumer cards on two physical machines behaving as one serving pool. The piece a
+    home setup can't show that production does — cross-node tensor/pipeline parallelism over
+    RDMA for models too big for one GPU — is called out in
+    [cross-node networking](../../docs/cluster-cross-node-networking.md).
+
+## Run 4 — KServe InferenceService — _planned_
 
 Re-run the same model under a full KServe `InferenceService` and compare operational
 overhead + numbers against the plain Deployment above.

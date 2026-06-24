@@ -4,13 +4,24 @@
 
 This is also where existing EKS / GitOps / Prometheus skills give a large head start over candidates who know models but not platforms. Lead with that.
 
-**Status: In progress.** The autoscaling control plane is **built and validated locally** (no GPU) on a `kind` cluster — KEDA scaled the deployment 1→5 on the queue-depth signal, with Grafana dashboards, an SLO, and alerts. Draft artifacts are in place; real-GPU serving numbers are next.
+**Status: In progress.** The autoscaling control plane is **built and validated locally** (no GPU) on a `kind` cluster — KEDA scaled the deployment 1→5 on the queue-depth signal, with Grafana dashboards, an SLO, and alerts. The build has since moved onto **real GPUs**: the [DIY two-GPU cluster](gpu-node/diy-cluster.md) is live and serving **real vLLM**, with cross-node GPU + inference metrics flowing into a single Prometheus.
+
+**Real-GPU progress — DIY two-GPU cluster (RTX 3060 Ti + RTX 4070, 8 GB each):**
+
+- :material-check: **Real vLLM serving** on the 8 GB cards — Qwen2.5-1.5B and 3B, with TTFT / throughput / KV-cache / cost numbers and a 1.5B-vs-3B comparison ([real-gpu-results.md](gpu-node/real-gpu-results.md)). The 3B run reproduces the autoscaler's trigger conditions on real hardware (KV-cache 99.5 %, queue depth 12, TTFT p95 4.1 s).
+- :material-check: **Cross-node networking root-caused & fixed** — a WSL2 mirrored-mode / kernel-VXLAN-socket limitation; written up as a debugging case study ([troubleshooting log](../docs/cluster-troubleshooting-log.md)). Real platform-debugging evidence.
+- :material-check: **Cluster-wide GPU + vLLM telemetry** in Prometheus (hostNetwork exporters + a vLLM PodMonitor, working around the overlay).
+- :material-progress-clock: **Two-GPU load-balanced scale-out** — one replica per card behind an external nginx LB (in progress).
+- :material-timer-sand: **KServe InferenceService** variant + comparison against the plain Deployment.
+- :material-timer-sand: **KEDA wired on the real cluster** (validated locally; the 3B run shows the signal would fire).
+- :material-timer-sand: Inference **gateway**, **GitOps/CI**, and an **OSS PR** still ahead.
 
 - [`local/`](local/) — the runnable local stack (mock vLLM + KEDA + Prometheus/Grafana), one command: `make up`
-- [`WRITEUP.md`](WRITEUP.md) — portfolio write-up (draft; local results in, GPU numbers TODO)
+- [`gpu-node/`](gpu-node/README.md) — the **DIY two-GPU cluster** (two 8 GB consumer GPUs as k3s GPU workers) serving real vLLM at $0, incl. the [runbook](gpu-node/diy-cluster.md)
+- [`gpu-node/real-gpu-results.md`](gpu-node/real-gpu-results.md) — **real-GPU serving numbers**: 1.5B vs 3B and the two-GPU load-balanced scale-out
+- [`WRITEUP.md`](WRITEUP.md) — portfolio write-up (local + real-GPU results in)
+- [`loadtest/`](loadtest/) — load + capture harness ([`gpu-loadtest.py`](loadtest/gpu-loadtest.py), `scale-demo.sh`, `incluster-load.yaml`)
 - [`runbook.md`](runbook.md) — operational runbook (draft)
-- [`loadtest/`](loadtest/) — formalized load + capture (`scale-demo.sh`, `incluster-load.yaml`)
-- [`gpu-node/`](gpu-node/README.md) — plan for using **local Windows GPUs** instead of renting, incl. the [DIY two-GPU cluster](gpu-node/diy-cluster.md) (Windows PC k3s server + the 8 GB RTX 4070 laptop)
 
 ## Architecture
 
@@ -39,15 +50,15 @@ This is also where existing EKS / GitOps / Prometheus skills give a large head s
 
 ### Build
 
-- [ ] Deploy an open-weights model on Kubernetes via **KServe** (or Ray Serve) with **vLLM** as the engine — see [`k8s/inferenceservice.yaml`](k8s/inferenceservice.yaml).
-- [x] **Autoscale with KEDA** driven by TTFT p95 or KV-cache utilization from Prometheus, **not CPU** *(validated locally: 1→5 on queue depth)* — see [`k8s/keda-scaledobject.yaml`](k8s/keda-scaledobject.yaml). *This is the single most important thing to get working.*
+- [ ] Deploy an open-weights model on Kubernetes via **KServe** (or Ray Serve) with **vLLM** as the engine — see [`k8s/inferenceservice.yaml`](k8s/inferenceservice.yaml). *(real vLLM serving is live via a plain Deployment on the DIY 2-GPU cluster — [vllm-plain.yaml](gpu-node/vllm-plain.yaml), [results](gpu-node/real-gpu-results.md); the **KServe** variant is the remaining piece of this item.)*
+- [x] **Autoscale with KEDA** driven by TTFT p95 or KV-cache utilization from Prometheus, **not CPU** *(validated locally: 1→5 on queue depth; on real GPU the 3B run drives KV-cache to 99.5 % and queue depth to 12, so the trigger would fire — wiring KEDA on the GPU cluster is the remaining step)* — see [`k8s/keda-scaledobject.yaml`](k8s/keda-scaledobject.yaml). *This is the single most important thing to get working.*
 - [ ] Add an **inference gateway** (Envoy AI Gateway) for token-aware rate limiting and model routing.
-- [x] **Instrument everything**: Prometheus scrape + Grafana dashboards for TTFT, inter-token latency, throughput, queue depth, GPU utilization. Define one SLO and wire one alert. *(done locally; dashboard + TTFT-p95 SLO + alerts)*
-- [x] **Load test** and capture saturation behavior — see [`loadtest/`](loadtest/). *(captured; scale-out + queue/TTFT timeline)*
+- [x] **Instrument everything**: Prometheus scrape + Grafana dashboards for TTFT, inter-token latency, throughput, queue depth, GPU utilization. Define one SLO and wire one alert. *(done locally; dashboard + TTFT-p95 SLO + alerts — and now live on the DIY cluster: cross-node GPU + vLLM metrics in one Prometheus)*
+- [x] **Load test** and capture saturation behavior — see [`loadtest/`](loadtest/). *(captured locally; plus real-GPU load tests on the 2-GPU cluster — [real-gpu-results.md](gpu-node/real-gpu-results.md))*
 
 ### Ship real code + treat it like a product platform (Staff EM credibility)
 
-- [ ] Build at least one genuine code component in a **named language** — a token-aware router or **custom KEDA external scaler in Go**, or extend the Python benchmark harness. Not just YAML.
+- [ ] Build at least one genuine code component in a **named language** — a token-aware router or **custom KEDA external scaler in Go**, or extend the Python benchmark harness. Not just YAML. *(started: [gpu-loadtest.py](loadtest/gpu-loadtest.py), a dependency-free streaming load generator; the Go scaler is still the headline code component.)*
 - [ ] Land **one small PR to an OSS inference project** (vLLM / KServe / KEDA) and link it from the write-up.
 - [ ] **GitOps** (Argo CD or Flux) for declarative deploys; **CI/CD** (lint → test → build → deploy preview); **IaC** (Terraform or Helm); an automated **smoke/integration test** after each deploy. → *"engineering excellence through automation, tooling, and standardization across deployment, testing, and operations."*
 - [ ] Note in the write-up that the stack (KServe, KEDA, Prometheus, Envoy) is **CNCF** — a preferred qualification you can claim.
