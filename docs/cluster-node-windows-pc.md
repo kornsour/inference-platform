@@ -14,9 +14,10 @@ is the **client** (`kubectl` / `helm`, GitOps/CI).
    GitOps / CI                k3s SERVER + GPU worker      k3s AGENT + GPU worker
 ```
 
-> **Specs not yet captured.** This machine is being set up (2026-06-23). Run
-> [Appendix A](#appendix-a--capturing-specs) once Ubuntu is installed and paste the
-> results into §2 / §3 so this node doc matches the laptop's.
+> **k3s server is live (2026-06-23)** at `192.168.18.2`; the laptop agent has joined
+> and both nodes advertise a GPU. **Hardware specs still need capturing** — run
+> [Appendix A](#appendix-a--capturing-specs) on the PC and paste the results into §2
+> so this node doc matches the laptop's.
 
 ---
 
@@ -24,14 +25,14 @@ is the **client** (`kubectl` / `helm`, GitOps/CI).
 
 | Step | State |
 |------|-------|
-| WSL2 + Ubuntu installed | :material-checkbox-blank-outline: to do |
-| Windows NVIDIA driver + WSL GPU passthrough (`nvidia-smi` in WSL) | :material-checkbox-blank-outline: |
-| NVIDIA Container Toolkit (in WSL) | :material-checkbox-blank-outline: |
-| Mirrored networking (`.wslconfig`) | :material-checkbox-blank-outline: |
-| **k3s server installed** | :material-checkbox-blank-outline: |
-| Firewall: 6443/TCP, 8472/UDP, 10250/TCP open on the LAN | :material-checkbox-blank-outline: |
-| NVIDIA device plugin (advertise `nvidia.com/gpu`) | :material-checkbox-blank-outline: (after the laptop joins) |
-| LAN IP + node-token handed to the laptop & Mac | :material-checkbox-blank-outline: |
+| WSL2 + Ubuntu installed | :material-check: |
+| Windows NVIDIA driver + WSL GPU passthrough (`nvidia-smi` in WSL) | :material-check: |
+| NVIDIA Container Toolkit (in WSL) | :material-check: |
+| Mirrored networking (`.wslconfig`) | :material-check: |
+| **k3s server installed** | :material-check: running at `192.168.18.2:6443` |
+| Firewall: 6443/TCP, 8472/UDP, 10250/TCP open on the LAN | :material-check: agent joined; flannel VXLAN established |
+| NVIDIA device plugin (advertise `nvidia.com/gpu`) | :material-check: applied cluster-wide; Running on both nodes |
+| LAN IP + node-token handed to the laptop & Mac | :material-check: laptop joined · :material-timer-sand: Mac kubeconfig pending |
 
 ---
 
@@ -58,7 +59,7 @@ _TBD — capture with [Appendix A](#appendix-a--capturing-specs) after WSL setup
 
 | Setting | Value |
 |---------|-------|
-| LAN IP | _TBD — `hostname -I` in WSL (mirrored) or `ipconfig` on Windows_ |
+| LAN IP | `192.168.18.2` (k3s server / API endpoint `:6443`) |
 | Subnet / gateway | `192.168.18.0/24`, gateway `192.168.18.1` (same LAN as the laptop) |
 | WSL2 networking | Mirrored (set in `.wslconfig`) — WSL shares the host LAN IP |
 
@@ -99,14 +100,20 @@ sudo cat /var/lib/rancher/k3s/server/node-token    # node-token — give to the 
 [ports table](../phase-2-capstone/gpu-node/diy-cluster.md#firewall-ports-between-machines):
 **6443/TCP** (API server), **8472/UDP** (flannel VXLAN), **10250/TCP** (kubelet).
 
-**Advertise the GPU** (run on both nodes, after the laptop has joined): point k3s's
-bundled containerd at the NVIDIA runtime and install the device plugin — see
-[`diy-cluster.md` → Both nodes](../phase-2-capstone/gpu-node/diy-cluster.md#both-nodes--advertise-the-gpu).
-On the **server** the restart is `sudo systemctl restart k3s` (the laptop agent uses
-`k3s-agent`).
+**Advertise the GPU** — on k3s `v1.35` the NVIDIA runtime is **auto-detected** (no
+manual `nvidia-ctk` step needed). Apply the device plugin **once** from here and it
+covers every GPU node in the cluster, the laptop included:
+
+```bash
+kubectl apply -f https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/v0.16.2/deployments/static/nvidia-device-plugin.yml
+```
+
+See [`diy-cluster.md` → Both nodes](../phase-2-capstone/gpu-node/diy-cluster.md#both-nodes--advertise-the-gpu).
 
 **Hand the Mac a kubeconfig:** copy `/etc/rancher/k3s/k3s.yaml` from this PC to the
-Mac, replace `127.0.0.1` with this PC's LAN IP, and save as `~/.kube/config`.
+Mac, replace `127.0.0.1` with `192.168.18.2`, and save as `~/.kube/config`. The Mac
+authenticates with this kubeconfig, **not** the node-token — see
+[Credentials](../phase-2-capstone/gpu-node/diy-cluster.md#credentials--how-each-machine-authenticates).
 
 ---
 
