@@ -1,0 +1,40 @@
+# KServe InferenceService — the same Qwen2.5-1.5B model, served the KServe-native way
+# via the built-in huggingface ServingRuntime (vLLM backend) instead of a hand-written
+# Deployment. Compare operational overhead + numbers against vllm-plain.yaml.
+#
+# Mode: RawDeployment (annotation below) — plain K8s Deployment + Service + HPA, NO
+# Knative/Istio. Serverless mode would pull in a service mesh that depends on the
+# cross-node pod overlay, which is down on this WSL2 cluster (see troubleshooting log).
+#
+# runtimeClassName: nvidia is required for GPU access under k3s. gpu_memory_utilization
+# is held to 0.80 so it fits the desktop 3060 Ti (~6.7 GB free); the laptop is cordoned
+# during the KServe pass so the predictor + webhooks co-locate with the API server.
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: qwen
+  namespace: inference
+  annotations:
+    serving.kserve.io/deploymentMode: RawDeployment
+spec:
+  predictor:
+    runtimeClassName: nvidia
+    model:
+      modelFormat:
+        name: huggingface
+      args:
+        - --model_id=Qwen/Qwen2.5-1.5B-Instruct
+        - --gpu_memory_utilization=0.80
+        - --max_model_len=8192
+      resources:
+        # Both limits AND requests set explicitly: the kserve-huggingfaceserver runtime
+        # defaults memory limit to 2Gi, and K8s rejects requests > limits. (A plain
+        # Deployment doesn't surprise you this way — you write the whole pod spec.)
+        limits:
+          cpu: "4"
+          memory: 12Gi
+          nvidia.com/gpu: "1"
+        requests:
+          cpu: "1"
+          memory: 4Gi
+          nvidia.com/gpu: "1"

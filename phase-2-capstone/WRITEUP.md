@@ -1,8 +1,10 @@
 # Building an autoscaling LLM inference platform on Kubernetes
 
 > **Status: draft.** The control plane is built and validated end-to-end on a
-> local cluster; the real-GPU serving numbers (marked _TODO: GPU_) come from the
-> single-GPU run described in [`gpu-node/`](gpu-node/README.md).
+> local cluster; real-GPU serving numbers are now captured on the DIY two-GPU
+> cluster (Qwen2.5-1.5B and 3B on real vLLM) — see
+> [`gpu-node/real-gpu-results.md`](gpu-node/real-gpu-results.md). Still open: the
+> two-GPU load-balanced scale-out run and a KServe comparison.
 
 ## TL;DR
 
@@ -89,22 +91,35 @@ concurrency (KV-cache headroom / quantization), or shed/queue with backpressure.
 
 ## Real-GPU serving numbers
 
-_TODO: GPU._ Run real vLLM on the single 12 GB GPU node (see
-[`gpu-node/`](gpu-node/README.md)) and record, for a small quantized model:
+Captured on the DIY two-GPU cluster (RTX 3060 Ti + RTX 4070 Laptop, **8 GB** each)
+running **real vLLM** — PagedAttention, continuous batching, true KV-cache metrics.
+Full methodology and the 1.5B-vs-3B comparison:
+[`gpu-node/real-gpu-results.md`](gpu-node/real-gpu-results.md).
 
-| metric | value |
-| --- | --- |
-| Model / quantization | _TODO_ |
-| TTFT p50 / p95 @ 1 replica | _TODO_ |
-| Sustained throughput (tok/s) | _TODO_ |
-| KV-cache blocks / max concurrency | _TODO_ |
-| Cost-per-million-tokens (amortized) | _TODO_ |
+| metric | Qwen2.5-1.5B (FP16) | Qwen2.5-3B (FP16) |
+| --- | --- | --- |
+| TTFT p50 / p95 @ 1 replica, low load | 31 ms / ~0.8 s¹ | 65 ms / 0.35 s |
+| Sustained throughput (1 replica) | **~2,600 tok/s** | ~670 tok/s |
+| KV-cache blocks / capacity | 6,382 blocks / ~102k tok | 751 blocks / ~12k tok |
+| Binding resource | **compute** | **KV-cache memory** |
+| Cost per 1M output tokens (GPU energy) | ~$0.0015 | ~$0.005 |
 
-> A single consumer GPU validates *real* vLLM serving (PagedAttention,
-> continuous batching, true KV-cache metrics) but cannot demonstrate multi-
-> replica GPU scale-out — that needs ≥2 GPUs. The control loop above already
-> proves the scaling behavior; the GPU run proves the engine behavior. Same
-> metric names tie them together.
+¹ Cold first-request warmup; steady-state p95 stays well under the 1 s SLO.
+
+**The non-obvious result — model size flips the bottleneck.** The 1.5B model is
+*compute-bound* on an 8 GB card: even at 64 concurrent requests the KV cache sat at
+~11 % and the queue never formed, so it **never trips the autoscaler's signal**. The 3B
+model has an 8.5× smaller KV pool (and only fits at all with `--enforce-eager` + 2k
+context); driving long requests pushed KV-cache utilization to **99.5 %**, built a queue
+of **12 waiting**, and blew **TTFT p95 to 4.1 s** — exactly the
+`gpu_cache_usage > 0.7` / `queue_depth > 3` conditions KEDA scales on. So the **real GPU
+run reproduces the inference-aware autoscaling trigger end to end**, not just in the mock.
+
+> Two 8 GB GPUs validate real vLLM serving *and* set up genuine multi-replica scale-out
+> (one replica per card). Cross-node service load-balancing rides on the pod overlay,
+> which on this WSL2 setup needs the `hostNetwork` workaround documented in the
+> [troubleshooting log](../docs/cluster-troubleshooting-log.md) — the next step is the
+> two-GPU, load-balanced scale-out run.
 
 ## Design decisions
 

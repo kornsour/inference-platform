@@ -35,6 +35,11 @@ jobs:
             phase-2-capstone/local/manifests \
             phase-2-capstone/k8s \
             phase-2-capstone/gpu-node/external-vllm.yaml \
+            phase-2-capstone/gpu-node/vllm-plain.yaml \
+            phase-2-capstone/gpu-node/vllm-2gpu.yaml \
+            phase-2-capstone/gpu-node/kserve-inferenceservice.yaml \
+            phase-2-capstone/gpu-node/keda-scaledobject-gpu.yaml \
+            phase-2-capstone/keda-inference-scaler/deploy \
             phase-2-capstone/loadtest/incluster-load.yaml
 
   image:
@@ -61,3 +66,25 @@ jobs:
         run: pipx run ruff check phase-2-capstone/local/mock-vllm/app.py phase-1-foundations/benchmark.py || true
       - name: compile check
         run: python -m py_compile phase-2-capstone/local/mock-vllm/app.py phase-1-foundations/benchmark.py
+
+  scaler:
+    name: Build & test the Go external scaler
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: phase-2-capstone/keda-inference-scaler
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+      - name: install protoc + plugins
+        run: |
+          sudo apt-get update && sudo apt-get install -y protobuf-compiler
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.35.1
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: generate stubs, vet, test
+        run: make test
+      - name: docker build (smoke)
+        run: docker build -t keda-inference-scaler:ci .

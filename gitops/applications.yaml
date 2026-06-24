@@ -1,0 +1,56 @@
+# GitOps — Argo CD Applications that declaratively sync the inference platform to the
+# cluster. This is the CD half of the GitOps/CI checklist item (CI lints+validates+builds;
+# Argo CD continuously reconciles desired state from git).
+#
+# Apply with Argo CD installed: `kubectl apply -f gitops/applications.yaml`.
+# NOTE: each Application uses a directory `include` filter so only the *canonical* manifests
+# sync — gpu-node/ also holds alternatives (vllm-plain.yaml, kserve-inferenceservice.yaml)
+# that intentionally aren't part of the synced desired state.
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: inference-serving
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/kornsour/ai-inference
+    targetRevision: main
+    path: phase-2-capstone/gpu-node
+    directory:
+      include: "{vllm-2gpu.yaml,keda-scaledobject-gpu.yaml}"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: inference
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: inference-scaler
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/kornsour/ai-inference
+    targetRevision: main
+    path: phase-2-capstone/keda-inference-scaler/deploy
+    directory:
+      include: "scaler.yaml"   # the ScaledObject is owned by inference-serving above
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: inference
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

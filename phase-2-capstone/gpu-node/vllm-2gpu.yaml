@@ -1,0 +1,129 @@
+# Two-GPU load-balanced scale-out — one vLLM replica per physical GPU, fronted by
+# an nginx round-robin LB across the two node IPs.
+#
+# Why an external nginx LB instead of a ClusterIP Service? Cross-node ClusterIP
+# load-balancing DNATs to a backend pod IP on the other node, which rides the pod
+# overlay — and that overlay is down under WSL2 mirrored mode (see
+# docs/cluster-troubleshooting-log.md). hostNetwork pods bind node IPs on real
+# userspace sockets, so an LB that targets node IPs works over plain LAN TCP.
+#
+# Model is 1.5B at gpu-memory-utilization=0.80 so it fits the SMALLER free pool
+# (the desktop 3060 Ti has ~6.7 GB free while driving displays).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm-qwen
+  namespace: inference
+  labels:
+    app: vllm-qwen
+spec:
+  replicas: 2
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: vllm-qwen
+  template:
+    metadata:
+      labels:
+        app: vllm-qwen
+    spec:
+      runtimeClassName: nvidia
+      hostNetwork: true
+      dnsPolicy: Default
+      # one replica per node: never co-schedule two vLLM pods on the same host
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: vllm-qwen
+              topologyKey: kubernetes.io/hostname
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:latest
+          args:
+            - --model=Qwen/Qwen2.5-1.5B-Instruct
+            - --served-model-name=qwen
+            - --gpu-memory-utilization=0.80      # fit the desktop 3060 Ti (~6.7 GB free)
+            - --max-model-len=8192
+            - --port=8000
+          ports:
+            - name: http
+              containerPort: 8000
+          resources:
+            limits:
+              nvidia.com/gpu: 1
+          volumeMounts:
+            - name: dshm
+              mountPath: /dev/shm
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 40
+            periodSeconds: 10
+            failureThreshold: 90
+      volumes:
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 2Gi
+---
+# nginx round-robin LB across both GPU node IPs. hostNetwork on the desktop so it
+# is reachable at 192.168.18.2:8080 and can dial both node IPs over the LAN.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vllm-lb-conf
+  namespace: inference
+data:
+  default.conf: |
+    upstream vllm_pool {
+        server 192.168.18.2:8000   max_fails=1 fail_timeout=5s;
+        server 192.168.18.142:8000 max_fails=1 fail_timeout=5s;
+    }
+    server {
+        listen 8080;
+        location / {
+            proxy_pass http://vllm_pool;
+            proxy_read_timeout 300s;
+            proxy_set_header Host $host;
+        }
+        location = /lb-health { return 200 "ok\n"; }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm-lb
+  namespace: inference
+  labels:
+    app: vllm-lb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vllm-lb
+  template:
+    metadata:
+      labels:
+        app: vllm-lb
+    spec:
+      hostNetwork: true
+      dnsPolicy: Default
+      nodeSelector:
+        kubernetes.io/hostname: kaiser-desktop     # predictable LB address: 192.168.18.2:8080
+      containers:
+        - name: nginx
+          image: nginx:1.27-alpine
+          ports:
+            - name: lb
+              containerPort: 8080
+          volumeMounts:
+            - name: conf
+              mountPath: /etc/nginx/conf.d
+      volumes:
+        - name: conf
+          configMap:
+            name: vllm-lb-conf
