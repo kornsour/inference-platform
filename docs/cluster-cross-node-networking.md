@@ -14,7 +14,14 @@ is "a GPU pod on each box" enough? This page answers that for the capstone, reco
     the pod overlay works. This is a WSL2 mirrored-mode **inbound delivery** problem, not a
     flannel backend choice. Details in [§2](#2-current-status--the-blocker).
 
----
+!!! success "Resolved (2026-06-24): root cause found + metrics unblocked"
+    Direct tandem testing later pinned the **actual** root cause, which refines the note
+    above: mirrored mode does **not** drop generic inbound UDP (plain UDP tested 30/30 both
+    ways). It only delivers inbound UDP to ports with a **process-owned userspace socket**,
+    and flannel's VXLAN endpoint on 8472 is an **in-kernel** socket (no PID) that the
+    port-mirroring skips — so the overlay never enters the peer VM. The two-GPU metrics
+    plane was then unblocked by running the exporters with `hostNetwork` and scraping by
+    node IP. Full story: [Troubleshooting log](cluster-troubleshooting-log.md).
 
 ## 1. Do we need it? — by component
 
