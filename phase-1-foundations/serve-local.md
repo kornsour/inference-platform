@@ -1,8 +1,8 @@
 # Serving a model locally
 
-Two paths. Start with whichever matches your hardware, then graduate to vLLM — vLLM is the engine you'll carry into the Phase 2 capstone, so the time spent there compounds.
+Two paths. Start with whichever matches your hardware, then graduate to vLLM. vLLM is the engine I carry into the Phase 2 capstone, so the time spent there compounds.
 
-## Option A — Ollama (gentlest first step, CPU or Apple Silicon)
+## Option A: Ollama (gentlest first step, CPU or Apple Silicon)
 
 Good for a first endpoint with zero GPU. Runs on a Mac.
 
@@ -17,9 +17,9 @@ OpenAI-compatible endpoint: `http://localhost:11434/v1` (any value works as the 
 
 > Note: Ollama doesn't expose continuous batching / PagedAttention the way vLLM does, so its numbers won't teach you the *serving* lessons. It's here to get you a working endpoint fast.
 
-## Option B — vLLM (the real thing, needs an NVIDIA GPU)
+## Option B: vLLM (the real thing, needs an NVIDIA GPU)
 
-This is what matters. Rent a single GPU (RunPod / Lambda / Modal — budget a few dollars/hour, **shut it down between sessions**).
+This is what matters. Rent a single GPU (RunPod / Lambda / Modal; budget a few dollars/hour and **shut it down between sessions**).
 
 ```bash
 pip install vllm
@@ -29,12 +29,12 @@ vllm serve Qwen/Qwen2.5-1.5B-Instruct \
   --gpu-memory-utilization 0.90
 ```
 
-OpenAI-compatible endpoint: `http://localhost:8000/v1`. Watch the startup logs — vLLM prints the KV-cache size and how many concurrent sequences it can hold. That number *is* your concurrency ceiling; connect it back to the glossary.
+OpenAI-compatible endpoint: `http://localhost:8000/v1`. Watch the startup logs. vLLM prints the KV-cache size and how many concurrent sequences it can hold. That number is your concurrency ceiling, so connect it back to the glossary.
 
 ### Things to observe while it runs
 - The reported **KV cache blocks** and max concurrency.
 - How TTFT changes as you raise concurrency (prefill queueing).
-- How throughput (tokens/sec) climbs with batch size while per-request latency degrades — the core trade-off.
+- How throughput (tokens/sec) climbs with batch size while per-request latency degrades. That is the core trade-off.
 
 ## Then benchmark it
 

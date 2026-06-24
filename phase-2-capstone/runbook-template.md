@@ -1,4 +1,4 @@
-# Runbook — <platform name>
+# Runbook: <platform name>
 
 > Operational guide for the inference platform. Keep it short and real.
 > Pair this with one game-day exercise (kill a pod mid-load) and a postmortem.
@@ -27,7 +27,7 @@
 ## Failure playbooks
 ### High TTFT / SLO burn
 1. Check queue depth (`vllm:num_requests_waiting`) and KV-cache util.
-2. Confirm KEDA scaled out; if pinned at maxReplicas, you're GPU-bound — add capacity or shed load at the gateway.
+2. Confirm KEDA scaled out; if pinned at maxReplicas, you're GPU-bound, so add capacity or shed load at the gateway.
 
 ### Pod crash / GPU OOM
 1. Symptom: pod restarts, `gpu-memory-utilization` too high for `max-model-len`.

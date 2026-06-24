@@ -1,20 +1,20 @@
 # DIY two-GPU Kubernetes cluster (PC + laptop)
 
 Two Windows machines with NVIDIA GPUs joined as worker nodes give you something
-a single GPU can't: **real multi-replica GPU autoscaling** — KEDA scaling vLLM
+a single GPU can't: **real multi-replica GPU autoscaling**. KEDA scales vLLM
 pods across two physical GPUs on the queue/KV-cache signal. That completes the
-capstone story end to end, for $0.
+capstone end to end, for $0.
 
 ## Machines & roles
 
 | Machine | Role | GPU | k3s | Setup status (2026-06-23) |
 |---------|------|-----|-----|---------------------------|
-| **Windows PC** (`KAISER-DESKTOP`, `192.168.18.2`) | k3s **server** + GPU worker; always-on, hosts the API | RTX 3060 Ti, **8 GB** | server | :material-check: **live** — server up, device plugin applied — [node doc](../../docs/cluster-node-windows-pc.md) |
-| **Windows laptop** (`KAISER-LAPTOP`, `192.168.18.142`) | k3s **agent** + GPU worker | RTX 4070 Laptop, **8 GB** | agent | :material-check: **joined**, advertising `nvidia.com/gpu` — [node doc](../../docs/cluster-node-kaiser-laptop.md) |
-| **MacBook Pro** | client only — `kubectl` / `helm`, GitOps/CI | — | — | :material-timer-sand: kubeconfig pending |
+| **Windows PC** (`KAISER-DESKTOP`, `192.168.18.2`) | k3s **server** + GPU worker; always-on, hosts the API | RTX 3060 Ti, **8 GB** | server | :material-check: **live**: server up, device plugin applied. [node doc](../../docs/cluster-node-windows-pc.md) |
+| **Windows laptop** (`KAISER-LAPTOP`, `192.168.18.142`) | k3s **agent** + GPU worker | RTX 4070 Laptop, **8 GB** | agent | :material-check: **joined**, advertising `nvidia.com/gpu`. [node doc](../../docs/cluster-node-kaiser-laptop.md) |
+| **MacBook Pro** | client only: `kubectl` / `helm`, GitOps/CI | — | — | :material-timer-sand: kubeconfig pending |
 
 > **Model sizing:** both cards are **8 GB** (PC RTX 3060 Ti, laptop RTX 4070 Laptop),
-> so the nodes are evenly matched — target **8 GB** for the model on both.
+> so the nodes are evenly matched. Target **8 GB** for the model on both.
 
 Per-machine hardware/network/state lives in the node docs:
 [Windows PC](../../docs/cluster-node-windows-pc.md) ·
@@ -37,11 +37,11 @@ Per-machine hardware/network/state lives in the node docs:
 - **Mac** = client only: `kubectl`/`helm` with kubeconfig pointed at the PC.
 
 > All Kubernetes nodes are **Linux** (WSL2 Ubuntu). The NVIDIA GPUs are reached
-> through WSL2's GPU passthrough — you never run k8s on Windows directly.
+> through WSL2's GPU passthrough. You never run k8s on Windows directly.
 
 ## The one hard part: WSL2 networking
 
-By default WSL2 sits behind NAT, so its Linux IP isn't reachable from the LAN —
+By default WSL2 sits behind NAT, so its Linux IP isn't reachable from the LAN,
 which breaks multi-host clustering. The fix on **Windows 11 (22H2+)** is
 **mirrored networking mode**, which puts WSL2 on the LAN with the host. Put this
 in `C:\Users\<you>\.wslconfig` on **both** machines, then `wsl --shutdown`:
@@ -53,7 +53,7 @@ firewall=true
 ```
 
 If you're on Windows 10 (no mirrored mode), this gets much harder (netsh
-portproxy + flannel quirks) — at that point prefer the single-GPU
+portproxy + flannel quirks). At that point prefer the single-GPU
 [Option A](README.md#option-a--vllm-in-wsl2-cluster-points-at-it) instead.
 
 ## Per-machine setup
@@ -67,7 +67,7 @@ portproxy + flannel quirks) — at that point prefer the single-GPU
    wsl --update
    ```
 
-2. **NVIDIA driver for WSL** — install the latest **Game Ready / Studio driver on
+2. **NVIDIA driver for WSL.** Install the latest **Game Ready / Studio driver on
    Windows** (it includes WSL CUDA support). Do **not** install a Linux GPU
    driver inside WSL. Verify inside Ubuntu:
 
@@ -86,7 +86,7 @@ portproxy + flannel quirks) — at that point prefer the single-GPU
    ```
 
 4. **Mirrored networking** (see above), then `wsl --shutdown` from PowerShell.
-5. **Firewall** — allow the k3s ports between the two machines (see table below).
+5. **Firewall.** Allow the k3s ports between the two machines (see table below).
 
 ### PC — k3s server
 
@@ -109,10 +109,10 @@ curl -sfL https://get.k3s.io | K3S_URL=https://192.168.18.2:6443 \
 
 > **Do not run `nvidia-ctk runtime configure` against k3s.** Pointing it at
 > `/var/lib/rancher/k3s/agent/etc/containerd/config.toml.tmpl` overwrites k3s's
-> containerd template with a minimal one that drops the flannel CNI settings — the
+> containerd template with a minimal one that drops the flannel CNI settings, and the
 > node goes `NotReady` with `cni plugin not initialized`. (Verified the hard way on
 > 2026-06-23.) k3s **auto-detects** the NVIDIA Container Toolkit at startup and
-> creates a `nvidia` `RuntimeClass` by itself — no template editing needed.
+> creates a `nvidia` `RuntimeClass` by itself, so no template editing is needed.
 
 Because the toolkit was installed *before* k3s started, the `nvidia` runtime is
 already present (`kubectl get runtimeclass` should list `nvidia`). Install the device
@@ -154,7 +154,7 @@ Two different secrets, easy to confuse:
 | **Laptop** (agent) | kubelet joins the node pool with the server's **node-token** | the single `K10…` server node-token |
 | **Mac** (client) | `kubectl` / `helm` hit the API with an **admin kubeconfig** | `k3s.yaml` (TLS client cert + key + CA) |
 
-- The **node-token is not per-node** — there is **one** server token that *every*
+- The **node-token is not per-node**. There is **one** server token that *every*
   agent uses to join. It grants no `kubectl` access.
 - The **Mac never joins the cluster** and needs **no token**. It needs the admin
   kubeconfig (`/etc/rancher/k3s/k3s.yaml` from the PC), with `127.0.0.1` swapped for
@@ -177,10 +177,10 @@ Once both nodes show `nvidia.com/gpu: 1`, you have a real GPU cluster. Then:
 
 1. Install **KEDA** and **kube-prometheus-stack** (Helm, same as the local stack).
 2. Apply [`../k8s/inferenceservice.yaml`](../k8s/inferenceservice.yaml) (KServe +
-   vLLM) with an **8 GB-friendly** model (size to the smaller card — the laptop's
-   8 GB) — one replica lands on each GPU node.
+   vLLM) with an **8 GB-friendly** model (size to the smaller card, the laptop's
+   8 GB). One replica lands on each GPU node.
 3. Apply [`../k8s/keda-scaledobject.yaml`](../k8s/keda-scaledobject.yaml) and
-   [`../k8s/podmonitor.yaml`](../k8s/podmonitor.yaml) — the **same** objects
+   [`../k8s/podmonitor.yaml`](../k8s/podmonitor.yaml), the **same** objects
    validated locally, now scaling **real vLLM across two GPUs**.
 4. Re-run the load + capture from [`../loadtest/`](../loadtest/) and drop the real
    numbers into [`../WRITEUP.md`](../WRITEUP.md). This time scale-out is genuine
@@ -189,7 +189,7 @@ Once both nodes show `nvidia.com/gpu: 1`, you have a real GPU cluster. Then:
 ## Running metrics from the Mac
 
 With `~/.kube/config` pointed at the PC, the Mac drives all observability through
-`kubectl` / `helm` — no SSH into the nodes. Three tiers, cheapest first.
+`kubectl` / `helm`, with no SSH into the nodes. Three tiers, cheapest first.
 
 ### 1. Cluster + GPU inventory (works now)
 
@@ -202,7 +202,7 @@ kubectl top nodes
 kubectl top pods -A
 ```
 
-### 2. Ad-hoc GPU snapshot — `nvidia-smi` in a pod
+### 2. Ad-hoc GPU snapshot: `nvidia-smi` in a pod
 
 Schedules a throwaway pod onto a GPU node and runs `nvidia-smi`. Save as
 `gpu-smi.yaml`:
@@ -232,7 +232,7 @@ kubectl delete pod gpu-smi
 
 ### 3. Continuous GPU telemetry → Prometheus + Grafana (real dashboards)
 
-The device plugin only advertises GPU *count* — not utilization, memory, temp, or
+The device plugin only advertises GPU *count*, not utilization, memory, temp, or
 power. For those, run an exporter on the GPU nodes and scrape it with the capstone's
 **kube-prometheus-stack**.
 
@@ -246,19 +246,19 @@ kubectl -n monitoring port-forward svc/<grafana-svc> 3000:80   # http://localhos
 ```
 
 > **WSL2 + GeForce caveat:** DCGM has limited support on consumer GeForce cards under
-> WSL2 — some `DCGM_FI_*` fields may come back empty. If so, use
+> WSL2, so some `DCGM_FI_*` fields may come back empty. If so, use
 > [`nvidia_gpu_exporter`](https://github.com/utkuozdemir/nvidia_gpu_exporter) instead;
 > it just parses `nvidia-smi` (which works fine in WSL) and exposes util / mem / temp /
 > power on `:9835/metrics`. Scrape it with a `PodMonitor` the same way.
 
 These GPU signals sit alongside the inference metrics (TTFT, KV-cache %, queue depth)
-the capstone already scrapes from vLLM — together they're what the autoscaling and the
+the capstone already scrapes from vLLM. Together they're what the autoscaling and the
 write-up are built on.
 
 ## Reality check
 
-- **Different GPUs are fine** — Kubernetes schedules by `nvidia.com/gpu` count,
-  not model. Size the model to the *smaller* of the two cards (**8 GB** here — the
+- **Different GPUs are fine.** Kubernetes schedules by `nvidia.com/gpu` count,
+  not model. Size the model to the *smaller* of the two cards (**8 GB** here, the
   laptop).
 - **Laptop sleeping** → its node goes `NotReady` and pods reschedule; fine for
   demos, just keep it awake during a run.

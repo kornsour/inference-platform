@@ -1,4 +1,4 @@
-# Bootstrap — spin up / tear down the platform for a demo
+# Bootstrap: spin up and tear down the platform for a demo
 
 One command reconstitutes the whole inference platform on the DIY cluster, and one tears it
 down. This is the "get it back up to demo" automation: the install **order** and every
@@ -30,8 +30,8 @@ Per-layer targets let you bring up / tear down one piece: `make serving`, `make 
 
 ## Prerequisites
 
-- A running **k3s** cluster (server + GPU agent) with the NVIDIA device plugin — see the
-  [cluster runbook](../phase-2-capstone/gpu-node/diy-cluster.md).
+- A running **k3s** cluster (server + GPU agent) with the NVIDIA device plugin (see the
+  [cluster runbook](../phase-2-capstone/gpu-node/diy-cluster.md)).
 - **kube-prometheus-stack** installed in `monitoring` (the `netfix` layer patches it).
 - **helm** on PATH for the `gateway` layer.
 - `kubectl` pointed at the cluster (`KUBECTL="k3s kubectl"` on the server).
@@ -42,8 +42,8 @@ Every cordon / hostNetwork / reschedule step is a consequence of one root cause:
 mirrored networking doesn't carry flannel's cross-node overlay** (full story in the
 [troubleshooting log](../docs/cluster-troubleshooting-log.md); the design implications in
 [architecture decisions](../phase-2-capstone/architecture-decisions.md)). On a healthy CNI
-this script collapses to plain `kubectl apply`s with no cordon dance — which is exactly the
-gap between a homelab and production worth being able to articulate.
+this script collapses to plain `kubectl apply`s with no cordon dance. That is exactly the
+gap between a homelab and production.
 
 ## Config
 

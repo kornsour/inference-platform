@@ -28,7 +28,7 @@ Accelerators (GPUs) dominate the operational cost of serving LLMs, meaning the p
 
 Traditional web applications are typically scaled based on **CPU utilization** or **request rate**. These signals fail for LLM inference serving:
 
-- **GPU "utilization %" is the wrong signal:** `nvidia-smi` utilization measures the *fraction of time a kernel was active*, not how saturated the hardware is. A single memory-bound decode can show ~100% utilization while real compute (FLOP) headroom is enormous — so the number does not track serving capacity.
+- **GPU "utilization %" is the wrong signal:** `nvidia-smi` utilization measures the *fraction of time a kernel was active*, not how saturated the hardware is. A single memory-bound decode can show ~100% utilization while real compute (FLOP) headroom is enormous, so the number does not track serving capacity.
 - **Memory-used is also misleading:** engines like vLLM *pre-allocate* most of VRAM for the KV-cache pool at startup, so memory-used reads as pegged regardless of actual load. Neither classic web-scaling signal reflects how full the system really is.
 - **KV-Cache Saturation:** The true resource bottleneck is the **KV Cache capacity** (VRAM). When the KV cache is full, the engine cannot accept new requests even if it has compute headroom, leading to requests queueing up or being preempted (swapped/recomputed).
 - **Queue Depth and TTFT p95:** Because LLM generation is stateful and long-running, request queues build up rapidly. A sudden spike in requests increases queue time exponentially, causing TTFT p95 to spike while the actual GPU execution time per token remains relatively flat. Therefore, autoscaling must react to queue depth, KV cache utilization, or SLO-based targets like TTFT p95.
@@ -44,7 +44,7 @@ The benchmark results from running a local OpenAI-compatible endpoint (Ollama us
 |      4      |  8.57s   |  12.78s  |   15.6    |    30.2     |
 
 - **TTFT Degradation:** As concurrency increases from 1 to 4, TTFT p50 degrades dramatically (0.11s → 8.57s). This demonstrates prefill queueing in action.
-- **Throughput Plateau:** Total throughput plateaus very early around ~30 tok/s. This matches the theory of our setup: Ollama (llama.cpp) lacks kernel-level continuous batching and PagedAttention, meaning it does not scale throughput efficiently with concurrency. To see throughput scale with batch size, a real serving engine like vLLM is required.
+- **Throughput Plateau:** Total throughput plateaus very early around ~30 tok/s. This matches the theory of my setup: Ollama (llama.cpp) lacks kernel-level continuous batching and PagedAttention, meaning it does not scale throughput efficiently with concurrency. To see throughput scale with batch size, a real serving engine like vLLM is required.
 
 ## 6. The one thing that surprised me
 

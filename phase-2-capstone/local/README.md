@@ -1,6 +1,6 @@
 # Local control plane (no GPU)
 
-Build and validate the **autoscaling control loop** on a local `kind` cluster before spending a cent on GPUs. The capstone's hard part is scaling inference on *inference-aware signals* (queue depth, KV-cache utilization) instead of CPU — and that logic can be proven without a real model.
+Build and validate the **autoscaling control loop** on a local `kind` cluster before spending a cent on GPUs. The capstone's hard part is scaling inference on inference-aware signals (queue depth, KV-cache utilization) instead of CPU, and that logic can be proven without a real model.
 
 A **metrics-faithful mock** ([`mock-vllm/`](mock-vllm/app.py)) stands in for vLLM: it speaks the OpenAI streaming API and exposes Prometheus metrics with the **exact names a real vLLM emits** (`vllm:num_requests_waiting`, `vllm:gpu_cache_usage_perc`, `vllm:time_to_first_token_seconds`, …). Concurrency is bounded by `CAPACITY` "decode slots"; excess requests queue and register as *waiting*. Because the metric names match, the PodMonitor/ServiceMonitor, KEDA ScaledObject, Prometheus queries, and Grafana panels you build here transfer **unchanged** to the GPU build.
 
@@ -30,13 +30,13 @@ pip install locust                 # load generator
 make up                  # kind cluster + KEDA + kube-prometheus-stack + mock deploy
 # then, in separate terminals:
 make port-forward        # expose the service on localhost:8000
-make load                # locust UI at http://localhost:8089 — ramp users up
+make load                # locust UI at http://localhost:8089, ramp users up
 make watch               # watch replicas scale: deploy/mock-vllm + hpa
 make grafana             # dashboards at http://localhost:3000 (admin/admin)
 make down                # tear the cluster down when finished
 ```
 
-Suggested demo: start at 1 replica, ramp locust to ~20 users, and watch `make watch` — the deployment should climb toward `maxReplicaCount` as the queue builds, then settle back after you stop the load.
+Suggested demo: start at 1 replica, ramp locust to ~20 users, and watch `make watch`. The deployment should climb toward `maxReplicaCount` as the queue builds, then settle back after you stop the load.
 
 ## Files
 
@@ -47,7 +47,7 @@ Suggested demo: start at 1 replica, ramp locust to ~20 users, and watch `make wa
 | [`manifests/deployment.yaml`](manifests/deployment.yaml) | The mock workload (namespace + Deployment) |
 | [`manifests/service.yaml`](manifests/service.yaml) | Service exposing the API + `/metrics` |
 | [`manifests/servicemonitor.yaml`](manifests/servicemonitor.yaml) | Prometheus scrape config |
-| [`manifests/scaledobject.yaml`](manifests/scaledobject.yaml) | **KEDA ScaledObject — the centerpiece** |
+| [`manifests/scaledobject.yaml`](manifests/scaledobject.yaml) | **KEDA ScaledObject, the centerpiece** |
 | [`manifests/slo-prometheusrule.yaml`](manifests/slo-prometheusrule.yaml) | SLO recording rules + alerts (TTFT p95 < 1s) |
 | [`grafana/inference-dashboard.json`](grafana/inference-dashboard.json) | Dashboard: TTFT, ITL, throughput, queue, KV-cache, replicas |
 | [`Makefile`](Makefile) | One-command bring-up / teardown |
@@ -58,7 +58,7 @@ Run locally on a `kind` cluster (no GPU): driving ~3 req/s of 200-token requests
 
 ## Moving to GPU
 
-When the loop works locally, swap the workload for the real thing — the scaling stays identical:
+When the loop works locally, swap the workload for the real thing, and the scaling stays identical:
 
 | Local (here) | GPU build ([`../k8s/`](../k8s/)) |
 | --- | --- |
@@ -66,4 +66,4 @@ When the loop works locally, swap the workload for the real thing — the scalin
 | `manifests/servicemonitor.yaml` | `podmonitor.yaml` |
 | `manifests/scaledobject.yaml` | `keda-scaledobject.yaml` (same metrics, same thresholds) |
 
-> **What the mock does not do:** real prefill/decode compute, real GPU memory, or model output. It reproduces the *timing and saturation signals* the control plane reacts to — enough to build and trust the autoscaler, not to measure real cost-per-token. Those numbers come from the GPU run.
+> **What the mock does not do:** real prefill/decode compute, real GPU memory, or model output. It reproduces the timing and saturation signals the control plane reacts to, which is enough to build and trust the autoscaler, but not to measure real cost-per-token. Those numbers come from the GPU run.

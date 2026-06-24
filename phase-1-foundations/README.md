@@ -1,33 +1,33 @@
-# Phase 1 — Inference Serving Foundations (Months 1–2)
+# Phase 1 — Inference Serving Foundations
 
-**Goal:** close the literacy gap. By the end, you can explain — without notes — how a request becomes tokens, where the time and cost go, and why inference autoscaling is fundamentally different from web-service autoscaling.
+**Goal:** build the foundational literacy. By the end I can explain, without notes, how a request becomes tokens, where the time and cost go, and why inference autoscaling is fundamentally different from web-service autoscaling.
 
-**Status: Complete.** Model served locally with measured TTFT and tokens/sec, and the one-page brief written — see [`brief.md`](brief.md).
+**Status: complete.** I served a model locally with measured TTFT and tokens/sec, and wrote the one-page brief ([`brief.md`](brief.md)).
 
 ## Checklist
 
-### Learn (read + take notes against [`../docs/glossary.md`](../docs/glossary.md))
+### Learn (read and take notes against [`../docs/glossary.md`](../docs/glossary.md))
 
-- [x] Inference request lifecycle: prefill (compute-bound) vs. decode (memory-bound), and why that drives disaggregated serving.
-- [x] KV cache & batching: PagedAttention, continuous batching, KV-cache utilization as the scaling signal.
+- [x] Inference request lifecycle: prefill (compute-bound) vs decode (memory-bound), and why that drives disaggregated serving.
+- [x] KV cache and batching: PagedAttention, continuous batching, KV-cache utilization as the scaling signal.
 - [x] Metrics that matter: TTFT, inter-token latency, throughput, and their trade-offs against cost.
-- [x] Engine landscape: vLLM vs. TensorRT-LLM vs. SGLang — understand trade-offs, don't memorize benchmarks.
-- [x] GPU economics: why accelerators dominate cost; how quantization and batching change the math.
+- [x] Engine landscape: vLLM vs TensorRT-LLM vs SGLang, focused on trade-offs rather than memorizing benchmarks.
+- [x] GPU economics: why accelerators dominate cost, and how quantization and batching change the math.
 
 ### Resources
 
-- [x] vLLM docs + blog (PagedAttention, continuous batching) — the canonical start.
+- [x] vLLM docs and blog (PagedAttention, continuous batching), the canonical start.
 - [x] NVIDIA Dynamo docs (disaggregated serving, autoscaling).
-- [x] KServe docs — anchors the Phase 2 build.
-- [x] Chip Huyen, *Designing Machine Learning Systems* (serving + experiment-to-production chapters).
+- [x] KServe docs, which anchor the Phase 2 build.
+- [x] Chip Huyen, *Designing Machine Learning Systems* (serving and experiment-to-production chapters).
 - [x] Latent Space podcast; Baseten / Fireworks / Together engineering blogs.
 
 ### Milestone
 
-- [x] **Serve a model locally** behind an OpenAI-compatible endpoint — see [`serve-local.md`](serve-local.md).
-- [x] **Measure TTFT and tokens/sec** under a few concurrency levels — use [`benchmark.py`](benchmark.py).
-- [x] **Write the one-page brief** "How inference serving works and why it is hard" — see [`brief.md`](brief.md).
+- [x] **Serve a model locally** behind an OpenAI-compatible endpoint ([`serve-local.md`](serve-local.md)).
+- [x] **Measure TTFT and tokens/sec** under a few concurrency levels using [`benchmark.py`](benchmark.py).
+- [x] **Write the one-page brief** "How inference serving works and why it is hard" ([`brief.md`](brief.md)).
 
 ## Success signal
 
-You can explain prefill vs. decode and TTFT without notes, you have a running endpoint, and the brief reads clearly to someone who isn't you.
+I can explain prefill vs decode and TTFT without notes, I have a running endpoint, and the brief reads clearly to someone who isn't me.
