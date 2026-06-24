@@ -144,7 +144,51 @@ Client-side through the LB: **2,357 tok/s, TTFT p50 47 ms / p95 64 ms**, 0 error
     RDMA for models too big for one GPU — is called out in
     [cross-node networking](../../docs/cluster-cross-node-networking.md).
 
-## Run 4 — KServe InferenceService — _planned_
+## Run 4 — KServe InferenceService (same model, the platform way)
 
-Re-run the same model under a full KServe `InferenceService` and compare operational
-overhead + numbers against the plain Deployment above.
+The same Qwen2.5-1.5B served as a KServe `InferenceService` via the built-in
+**huggingface** ServingRuntime (vLLM backend) instead of a hand-written Deployment —
+[`kserve-inferenceservice.yaml`](kserve-inferenceservice.yaml). Mode: **RawDeployment**
+(no Knative/Istio — see [architecture decisions](../architecture-decisions.md)). Ran on
+the desktop 3060 Ti (the laptop was cordoned during this pass).
+
+### Setup & friction (the operational cost)
+
+Install was cert-manager → KServe controller → `ClusterServingRuntime`s, then the
+`InferenceService`. Three frictions surfaced, **all tied to this cluster's constraints** —
+and none of them exist with the plain Deployment:
+
+| Friction | Cause | Fix |
+|---|---|---|
+| cert-manager **webhook unreachable** | webhook pods landed on the laptop; the desktop API server can't reach them across the broken overlay | **cordon the laptop** so webhook-backed controllers co-locate with the API server |
+| KServe webhook **"no endpoints"** | applied cluster resources before the controller pod was Ready | wait for the controller `Available` |
+| Deployment **rejected** (`8Gi > 2Gi`) | the huggingface runtime defaults `memory` limit to 2Gi; my `requests` exceeded it | set both `limits` and `requests` explicitly |
+
+### Numbers
+
+`--gpu-memory-utilization 0.80`, CUDA graphs on, **5,701 GPU KV blocks (~91k tokens)**.
+
+| Concurrency | Throughput | TTFT p50 | TTFT p95 | Errors |
+|---:|---:|---:|---:|---:|
+| 1  | 97 tok/s    | 29 ms  | 246 ms | 0 |
+| 64 | 2,549 tok/s | 141 ms | 368 ms | 0 |
+
+### KServe vs. plain Deployment — the verdict
+
+| | Plain Deployment | KServe InferenceService |
+|---|---|---|
+| Peak throughput (1.5B) | ~2,600 tok/s | ~2,550 tok/s |
+| TTFT under load | comparable | comparable |
+| Serving-performance overhead | — | **none measurable** (same vLLM engine) |
+| To deploy | `Deployment` + `Service` + `PodMonitor` | cert-manager + KServe controller + CRDs + `InferenceService` |
+| Failure surface | one container, explicit flags | controllers, webhooks, runtime defaults |
+| What you get extra | — | declarative CRD, model abstraction, canary, storage-init, multi-model consistency |
+
+!!! success "Finding: KServe's cost is operational, not runtime"
+    Same engine, same numbers — **KServe adds no serving-performance penalty.** What it
+    adds is a control plane (cert-manager + controller + webhooks) and abstraction that
+    pays off when you operate *many* models/teams, but is pure overhead for a single
+    workload — and on a degraded-networking cluster that overhead shows up as real setup
+    friction (the table above). The plain Deployment shipped the same numbers with a
+    fraction of the moving parts. Pick KServe for the **platform** (fleet of models,
+    lifecycle, canary), not for a single model's throughput.

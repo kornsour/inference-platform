@@ -41,7 +41,7 @@ def worker(args, deadline, out, lock):
         ok = False
         try:
             conn = http.client.HTTPConnection(args.host, args.port, timeout=180)
-            conn.request("POST", "/v1/chat/completions", body,
+            conn.request("POST", args.base_path + "/chat/completions", body,
                          {"Content-Type": "application/json"})
             resp = conn.getresponse()
             if resp.status == 200:
@@ -78,6 +78,8 @@ def main():
     ap.add_argument("--concurrency", type=int, default=16)
     ap.add_argument("--duration", type=int, default=60)
     ap.add_argument("--max-tokens", type=int, default=200)
+    ap.add_argument("--base-path", default="/v1",
+                    help="OpenAI API prefix (plain vLLM: /v1; KServe huggingface: /openai/v1)")
     args = ap.parse_args()
 
     out, lock = [], threading.Lock()

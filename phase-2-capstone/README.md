@@ -11,8 +11,8 @@ This is also where existing EKS / GitOps / Prometheus skills give a large head s
 - :material-check: **Real vLLM serving** on the 8 GB cards — Qwen2.5-1.5B and 3B, with TTFT / throughput / KV-cache / cost numbers and a 1.5B-vs-3B comparison ([real-gpu-results.md](gpu-node/real-gpu-results.md)). The 3B run reproduces the autoscaler's trigger conditions on real hardware (KV-cache 99.5 %, queue depth 12, TTFT p95 4.1 s).
 - :material-check: **Cross-node networking root-caused & fixed** — a WSL2 mirrored-mode / kernel-VXLAN-socket limitation; written up as a debugging case study ([troubleshooting log](../docs/cluster-troubleshooting-log.md)). Real platform-debugging evidence.
 - :material-check: **Cluster-wide GPU + vLLM telemetry** in Prometheus (hostNetwork exporters + a vLLM PodMonitor, working around the overlay).
-- :material-progress-clock: **Two-GPU load-balanced scale-out** — one replica per card behind an external nginx LB (in progress).
-- :material-timer-sand: **KServe InferenceService** variant + comparison against the plain Deployment.
+- :material-check: **Two-GPU load-balanced scale-out** — one replica per card behind an external nginx LB; both GPUs serve in parallel (~2,360 tok/s aggregate).
+- :material-check: **KServe InferenceService** variant + comparison — same model the platform way (RawDeployment + huggingface/vLLM runtime); serving numbers identical to the plain Deployment, so KServe's cost is **operational, not runtime** ([results](gpu-node/real-gpu-results.md), [architecture decisions](architecture-decisions.md)).
 - :material-timer-sand: **KEDA wired on the real cluster** (validated locally; the 3B run shows the signal would fire).
 - :material-timer-sand: Inference **gateway**, **GitOps/CI**, and an **OSS PR** still ahead.
 
@@ -50,7 +50,7 @@ This is also where existing EKS / GitOps / Prometheus skills give a large head s
 
 ### Build
 
-- [ ] Deploy an open-weights model on Kubernetes via **KServe** (or Ray Serve) with **vLLM** as the engine — see [`k8s/inferenceservice.yaml`](k8s/inferenceservice.yaml). *(real vLLM serving is live via a plain Deployment on the DIY 2-GPU cluster — [vllm-plain.yaml](gpu-node/vllm-plain.yaml), [results](gpu-node/real-gpu-results.md); the **KServe** variant is the remaining piece of this item.)*
+- [x] Deploy an open-weights model on Kubernetes via **KServe** with **vLLM** as the engine — done both ways: a [plain Deployment](gpu-node/vllm-plain.yaml) *and* a [KServe `InferenceService`](gpu-node/kserve-inferenceservice.yaml) (RawDeployment + huggingface/vLLM runtime). Numbers + the operational comparison in [real-gpu-results.md](gpu-node/real-gpu-results.md); trade-offs in [architecture-decisions.md](architecture-decisions.md).
 - [x] **Autoscale with KEDA** driven by TTFT p95 or KV-cache utilization from Prometheus, **not CPU** *(validated locally: 1→5 on queue depth; on real GPU the 3B run drives KV-cache to 99.5 % and queue depth to 12, so the trigger would fire — wiring KEDA on the GPU cluster is the remaining step)* — see [`k8s/keda-scaledobject.yaml`](k8s/keda-scaledobject.yaml). *This is the single most important thing to get working.*
 - [ ] Add an **inference gateway** (Envoy AI Gateway) for token-aware rate limiting and model routing.
 - [x] **Instrument everything**: Prometheus scrape + Grafana dashboards for TTFT, inter-token latency, throughput, queue depth, GPU utilization. Define one SLO and wire one alert. *(done locally; dashboard + TTFT-p95 SLO + alerts — and now live on the DIY cluster: cross-node GPU + vLLM metrics in one Prometheus)*
