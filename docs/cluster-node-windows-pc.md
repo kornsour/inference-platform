@@ -15,9 +15,8 @@ is the **client** (`kubectl` / `helm`, GitOps/CI).
 ```
 
 > **k3s server is live (2026-06-23)** at `192.168.18.2`; the laptop agent has joined
-> and both nodes advertise a GPU. **Hardware specs still need capturing** — run
-> [Appendix A](#appendix-a--capturing-specs) on the PC and paste the results into §2
-> so this node doc matches the laptop's.
+> and both nodes advertise a GPU. **Hardware specs captured 2026-06-24** (§2) —
+> RTX 3060 Ti, 8 GB, so both cluster GPUs are 8 GB.
 
 ---
 
@@ -38,20 +37,23 @@ is the **client** (`kubectl` / `helm`, GitOps/CI).
 
 ## 2. Hardware & OS specs
 
-_TBD — capture with [Appendix A](#appendix-a--capturing-specs) after WSL setup._
+_Captured 2026-06-24. Re-run [Appendix A](#appendix-a--capturing-specs) after hardware/driver/OS changes._
 
 | Component | Detail |
 |-----------|--------|
-| Make / model | _TBD_ |
-| Hostname | _TBD_ |
-| OS | _TBD_ |
-| CPU | _TBD_ |
-| RAM | _TBD_ |
-| **Discrete GPU** | _TBD — the plan assumed a 12 GB card; verify with `nvidia-smi`_ |
-| VRAM | _TBD_ |
+| Make / model | Custom desktop build — MSI `MS-7C91` (B550 board) |
+| Hostname | `KAISER-DESKTOP` |
+| OS | Windows 11 Pro, version 10.0.26200 (build 26200), 64-bit |
+| CPU | AMD Ryzen 5 5600X — 6 cores / 12 threads |
+| RAM | 32 GB (31.9 GiB usable) |
+| **Discrete GPU** | **NVIDIA GeForce RTX 3060 Ti** |
+| VRAM | **8 GB GDDR6** (8192 MiB reported by `nvidia-smi`) |
+| Driver version | 591.86 (Windows; provides the WSL CUDA stack) |
+| NVIDIA Container Toolkit | v1.19.1 (in WSL) |
 
-> **Cluster sizing:** the deployed model is sized to the **smaller** of the two
-> GPUs. The laptop is **8 GB**, so plan for 8 GB regardless of this card's VRAM.
+> **Cluster sizing:** both GPUs are **8 GB** (this card is an RTX 3060 Ti; the laptop
+> is an RTX 4070 Laptop). The earlier plan assumed a 12 GB card here — it's 8 GB — so
+> the two nodes are evenly matched and the deployed model targets **8 GB** on both.
 
 ---
 

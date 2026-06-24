@@ -9,12 +9,12 @@ capstone story end to end, for $0.
 
 | Machine | Role | GPU | k3s | Setup status (2026-06-23) |
 |---------|------|-----|-----|---------------------------|
-| **Windows PC** (`192.168.18.2`) | k3s **server** + GPU worker; always-on, hosts the API | _TBD — capture on PC_ | server | :material-check: **live** — server up, device plugin applied — [node doc](../../docs/cluster-node-windows-pc.md) |
-| **Windows laptop** (`KAISER-LAPTOP`, `192.168.18.141`) | k3s **agent** + GPU worker | RTX 4070 Laptop, **8 GB** | agent | :material-check: **joined**, advertising `nvidia.com/gpu` — [node doc](../../docs/cluster-node-kaiser-laptop.md) |
+| **Windows PC** (`KAISER-DESKTOP`, `192.168.18.2`) | k3s **server** + GPU worker; always-on, hosts the API | RTX 3060 Ti, **8 GB** | server | :material-check: **live** — server up, device plugin applied — [node doc](../../docs/cluster-node-windows-pc.md) |
+| **Windows laptop** (`KAISER-LAPTOP`, `192.168.18.142`) | k3s **agent** + GPU worker | RTX 4070 Laptop, **8 GB** | agent | :material-check: **joined**, advertising `nvidia.com/gpu` — [node doc](../../docs/cluster-node-kaiser-laptop.md) |
 | **MacBook Pro** | client only — `kubectl` / `helm`, GitOps/CI | — | — | :material-timer-sand: kubeconfig pending |
 
-> **Model sizing:** size the deployed model to the **smaller** card. The laptop is
-> **8 GB**, so target 8 GB even if the PC has more VRAM.
+> **Model sizing:** both cards are **8 GB** (PC RTX 3060 Ti, laptop RTX 4070 Laptop),
+> so the nodes are evenly matched — target **8 GB** for the model on both.
 
 Per-machine hardware/network/state lives in the node docs:
 [Windows PC](../../docs/cluster-node-windows-pc.md) ·

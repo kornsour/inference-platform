@@ -72,8 +72,9 @@ how it joined and how to verify or rejoin.
 
 - **8 GB VRAM is the binding constraint for the whole cluster.** Kubernetes sizes
   by `nvidia.com/gpu` count, not VRAM, so the model that lands on *both* nodes must
-  fit the **smaller** card — this one. Plan workloads around 8 GB even if the PC has
-  more (see [§4](#4-model-sizing-constraint)).
+  fit 8 GB. Both cards are 8 GB here (this RTX 4070 Laptop and the PC's RTX 3060 Ti),
+  so the nodes are evenly matched — plan workloads around 8 GB (see
+  [§4](#4-model-sizing-constraint)).
 - **55 W TGP** means sustained throughput is well below a desktop 4070. Expect
   thermal throttling on long runs; keep the laptop plugged in and on a hard surface.
 - **WDDM driver model** (not TCC) — normal for laptop NVIDIA GPUs. The desktop
@@ -87,12 +88,12 @@ how it joined and how to verify or rejoin.
 | Setting | Value |
 |---------|-------|
 | Active interface | **Wi-Fi** — Killer Wi-Fi 6E AX1675i |
-| Current IPv4 | `192.168.18.141` (Wi-Fi MAC `56-D5-10-EC-9C-FC`) — was `.140`, DHCP reassigned |
-| Cluster node IP (`k3s.io/internal-ip`) | `192.168.18.141` |
+| Current IPv4 | `192.168.18.142` (Wi-Fi MAC `56-D5-10-EC-9C-FC`) — was `.140` → `.141`, DHCP keeps reassigning |
+| Cluster node IP (`k3s.io/internal-ip`) | `192.168.18.142` |
 | Subnet / gateway | `192.168.18.0/24`, gateway `192.168.18.1` |
 | Workgroup | `WORKGROUP` (not domain-joined) |
 | Ethernet | Present but unplugged (self-assigned `169.254.x.x`) |
-| **WSL2 networking** | **Mirrored** — WSL shares the host IP `192.168.18.141` on the LAN |
+| **WSL2 networking** | **Mirrored** — WSL shares the host IP `192.168.18.142` on the LAN |
 
 **Mirrored networking is the key enabler.** By default WSL2 sits behind NAT and its
 Linux IP isn't reachable from the LAN, which breaks multi-host k3s. The `.wslconfig`
@@ -100,8 +101,8 @@ on this machine sets `networkingMode=mirrored`, so the k3s agent in WSL is reach
 from the PC server and Mac at the host's LAN IP. Verified: `hostname -I` inside WSL
 returns the same address Windows uses.
 
-**Give this node a stable IP.** The address already drifted from `.140` to `.141`
-across a reboot — harmless (the agent dials *out* to the server), but a static lease
+**Give this node a stable IP.** The address has now drifted `.140` → `.141` → `.142`
+across reboots — harmless (the agent dials *out* to the server), but a static lease
 removes the surprise. In the router (`http://192.168.18.1`) bind MAC
 `56-D5-10-EC-9C-FC` to a fixed IP, or set a static IP in Windows. **Wired Ethernet**
 to the same switch as the PC is worth it for a compute node — lower latency and far
