@@ -4,6 +4,11 @@ A custom **KEDA external scaler** that autoscales an LLM serving Deployment on a
 *composite* inference-saturation signal — the real code component of the capstone
 (not just YAML).
 
+> **Published standalone** (genericized, Apache-2.0) at
+> [github.com/kornsour/keda-inference-scaler](https://github.com/kornsour/keda-inference-scaler)
+> and listed in KEDA's community scalers — see [oss-contribution.md](../oss-contribution.md).
+> This in-repo copy is the capstone's working version.
+
 ## Why it exists
 
 KEDA's built-in `prometheus` scaler reacts to **one** query. But inference saturation is
