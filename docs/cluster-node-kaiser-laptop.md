@@ -25,19 +25,20 @@ GitOps/CI); it runs no cluster workloads itself.
 
 ## 1. Setup status — 2026-06-23
 
+**This node is live in the cluster** — joined as a k3s agent and advertising its GPU.
+
 | Step | State |
 |------|-------|
-| WSL2 + Ubuntu installed | :material-check: done (Ubuntu, WSL version 2) |
+| WSL2 + Ubuntu installed | :material-check: Ubuntu, WSL version 2 |
 | Windows NVIDIA driver + WSL GPU passthrough | :material-check: `nvidia-smi` in WSL lists the RTX 4070 |
 | NVIDIA Container Toolkit (in WSL) | :material-check: v1.19.1 |
-| Mirrored networking (`.wslconfig`) | :material-check: verified — WSL `hostname -I` == host `192.168.18.140` |
-| **k3s agent — joined to the PC server** | :material-timer-sand: **in progress** — server is up at `192.168.18.2`; first `k3s-agent` start failed, under diagnosis |
-| NVIDIA device plugin (advertise `nvidia.com/gpu`) | :material-timer-sand: pending (after join) |
+| Mirrored networking (`.wslconfig`) | :material-check: verified — WSL `hostname -I` == host LAN IP |
+| **k3s agent — joined to the PC server** | :material-check: joined (k3s `v1.35.5+k3s1`, agent → `https://192.168.18.2:6443`) |
+| NVIDIA runtime in k3s containerd | :material-check: **auto-detected by k3s** (`nvidia` → `/usr/bin/nvidia-container-runtime`) |
+| NVIDIA device plugin (advertise `nvidia.com/gpu`) | :material-check: pod Running; registered `nvidia.com/gpu` with the kubelet |
 
-The PC k3s **server is now up** (node `kaiser-desktop` `Ready`, GPU advertised), so the
-blocker is cleared. What remains is **the join** — see
-[§5](#5-remaining-steps--join-the-cluster). The first agent start errored; diagnose
-with `sudo journalctl -xeu k3s-agent --no-pager | tail -60` on the laptop.
+Cluster node name: **`kaiser-laptop`**. See [§5](#5-how-this-node-joined) for exactly
+how it joined and how to verify or rejoin.
 
 ---
 
@@ -71,8 +72,9 @@ with `sudo journalctl -xeu k3s-agent --no-pager | tail -60` on the laptop.
 
 - **8 GB VRAM is the binding constraint for the whole cluster.** Kubernetes sizes
   by `nvidia.com/gpu` count, not VRAM, so the model that lands on *both* nodes must
-  fit the **smaller** card — this one. Plan workloads around 8 GB even if the PC has
-  more (see [§4](#4-model-sizing-constraint)).
+  fit 8 GB. Both cards are 8 GB here (this RTX 4070 Laptop and the PC's RTX 3060 Ti),
+  so the nodes are evenly matched — plan workloads around 8 GB (see
+  [§4](#4-model-sizing-constraint)).
 - **55 W TGP** means sustained throughput is well below a desktop 4070. Expect
   thermal throttling on long runs; keep the laptop plugged in and on a hard surface.
 - **WDDM driver model** (not TCC) — normal for laptop NVIDIA GPUs. The desktop
@@ -86,23 +88,25 @@ with `sudo journalctl -xeu k3s-agent --no-pager | tail -60` on the laptop.
 | Setting | Value |
 |---------|-------|
 | Active interface | **Wi-Fi** — Killer Wi-Fi 6E AX1675i |
-| Current IPv4 | `192.168.18.140` (Wi-Fi MAC `56-D5-10-EC-9C-FC`) |
+| Current IPv4 | `192.168.18.142` (Wi-Fi MAC `56-D5-10-EC-9C-FC`) — was `.140` → `.141`, DHCP keeps reassigning |
+| Cluster node IP (`k3s.io/internal-ip`) | `192.168.18.142` |
 | Subnet / gateway | `192.168.18.0/24`, gateway `192.168.18.1` |
 | Workgroup | `WORKGROUP` (not domain-joined) |
 | Ethernet | Present but unplugged (self-assigned `169.254.x.x`) |
-| **WSL2 networking** | **Mirrored** — WSL shares the host IP `192.168.18.140` on the LAN |
+| **WSL2 networking** | **Mirrored** — WSL shares the host IP `192.168.18.142` on the LAN |
 
 **Mirrored networking is the key enabler.** By default WSL2 sits behind NAT and its
 Linux IP isn't reachable from the LAN, which breaks multi-host k3s. The `.wslconfig`
 on this machine sets `networkingMode=mirrored`, so the k3s agent in WSL is reachable
 from the PC server and Mac at the host's LAN IP. Verified: `hostname -I` inside WSL
-returns `192.168.18.140`, the same address Windows uses.
+returns the same address Windows uses.
 
-**Give this node a stable IP.** k3s and the agent don't care which IP, but a DHCP
-lease change after reboot is one less surprise. In the router (`http://192.168.18.1`)
-bind MAC `56-D5-10-EC-9C-FC` to a fixed IP, or set a static IP in Windows. **Wired
-Ethernet** to the same switch as the PC is worth it for a compute node — lower
-latency and far steadier than shared Wi-Fi.
+**Give this node a stable IP.** The address has now drifted `.140` → `.141` → `.142`
+across reboots — harmless (the agent dials *out* to the server), but a static lease
+removes the surprise. In the router (`http://192.168.18.1`) bind MAC
+`56-D5-10-EC-9C-FC` to a fixed IP, or set a static IP in Windows. **Wired Ethernet**
+to the same switch as the PC is worth it for a compute node — lower latency and far
+steadier than shared Wi-Fi.
 
 ---
 
@@ -120,36 +124,47 @@ Start with `Qwen/Qwen2.5-3B-Instruct` (FP16) or a 7B-AWQ build, and set
 
 ---
 
-## 5. Remaining steps — join the cluster
+## 5. How this node joined
 
-The PC k3s server is **up at `192.168.18.2`** (node `kaiser-desktop` `Ready`, GPU
-advertised). Grab its **node-token** (`sudo cat /var/lib/rancher/k3s/server/node-token`
-on the PC), then in this laptop's WSL2 Ubuntu:
+Joined 2026-06-23 with the PC server's LAN IP (`192.168.18.2`) and its node-token. In
+this laptop's WSL2 Ubuntu (run as **root** to avoid an interactive `sudo` prompt):
 
 ```bash
-# 1) Join as a k3s agent  (server is up at 192.168.18.2)
 curl -sfL https://get.k3s.io | K3S_URL=https://192.168.18.2:6443 \
-  K3S_TOKEN=<token-from-server> sh -
+  K3S_TOKEN=<server-node-token> sh -
 ```
 
-**No GPU-advertise steps needed on the laptop.** The NVIDIA Container Toolkit is
-already installed here (v1.19.1), so the k3s-agent auto-detects the `nvidia` runtime
-on start, and the device-plugin DaemonSet (applied once from the server) schedules
-onto this node automatically. Do **not** run `nvidia-ctk runtime configure` against
-k3s — it overwrites k3s's containerd template and breaks the CNI (see
-[`diy-cluster.md`](../phase-2-capstone/gpu-node/diy-cluster.md#advertise-the-gpu-device-plugin)).
-If this node ends up `Ready` but reports `gpu=0`, just `sudo systemctl restart k3s-agent`.
+That was the only command needed on this node. Two things then happened on their own:
 
-From the **Mac** (or the PC), confirm this node appears and advertises a GPU:
+- **k3s auto-detected the NVIDIA runtime.** Because the NVIDIA Container Toolkit was
+  already installed, k3s wrote the `nvidia` runtime into its containerd config itself
+  — the manual `nvidia-ctk runtime configure` step older guides show was **not
+  required** on k3s `v1.35`.
+- **The device plugin came from the cluster.** The `nvidia-device-plugin` DaemonSet
+  was already applied cluster-wide (from the PC), so it scheduled onto this node the
+  moment it joined and registered `nvidia.com/gpu` with the kubelet. Nothing to
+  `kubectl apply` here.
+
+**Verify from the Mac or PC** (the agent has no kubeconfig of its own):
 
 ```bash
-kubectl get nodes -o wide        # KAISER-LAPTOP should be Ready
-kubectl get nodes -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.allocatable.nvidia\.com/gpu}{"\n"}{end}'
-# this node should report 1 GPU
+kubectl get nodes -o wide        # kaiser-laptop should be Ready
+kubectl get nodes -o custom-columns=NODE:.metadata.name,GPU:'.status.allocatable.nvidia\.com/gpu'
+# kaiser-laptop should report nvidia.com/gpu: 1
 ```
 
-Full multi-machine procedure (PC server install, firewall ports, deploy across both
-GPUs) is in [`diy-cluster.md`](../phase-2-capstone/gpu-node/diy-cluster.md).
+**Local health check on this node** (WSL, as root):
+
+```bash
+systemctl is-active k3s-agent
+journalctl -u k3s-agent -n 30 --no-pager
+export CONTAINER_RUNTIME_ENDPOINT=unix:///run/k3s/containerd/containerd.sock
+crictl ps | grep nvidia-device-plugin     # should be Running
+```
+
+To leave/rejoin: `/usr/local/bin/k3s-agent-uninstall.sh` removes the agent cleanly;
+re-run the join command above to re-add it. Full multi-machine procedure is in
+[`diy-cluster.md`](../phase-2-capstone/gpu-node/diy-cluster.md).
 
 > **Keep the node awake during runs.** If the laptop sleeps, its node goes
 > `NotReady` and pods reschedule. Plug in, set High Performance, and disable sleep

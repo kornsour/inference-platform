@@ -76,6 +76,7 @@ nav:
   - Resources: docs/resources.md
   - DIY GPU Cluster:
       - Runbook (all machines): phase-2-capstone/gpu-node/diy-cluster.md
+      - Cross-node networking: docs/cluster-cross-node-networking.md
       - Node — Windows PC (k3s server): docs/cluster-node-windows-pc.md
       - Node — KAISER-LAPTOP (k3s agent): docs/cluster-node-kaiser-laptop.md
   - Phase 1 — Foundations:

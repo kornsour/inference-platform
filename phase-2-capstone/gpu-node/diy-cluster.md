@@ -9,12 +9,12 @@ capstone story end to end, for $0.
 
 | Machine | Role | GPU | k3s | Setup status (2026-06-23) |
 |---------|------|-----|-----|---------------------------|
-| **Windows PC** (`KAISER-DESKTOP`) | k3s **server** + GPU worker; always-on, hosts the API | RTX 3060 Ti, **8 GB** | server | :material-timer-sand: WSL2 + GPU passthrough done; bringing up toolkit / mirrored-net / k3s server — [node doc](../../docs/cluster-node-windows-pc.md) |
-| **Windows laptop** (`KAISER-LAPTOP`) | k3s **agent** + GPU worker | RTX 4070 Laptop, **8 GB** | agent | :material-check: prepped (WSL2 + toolkit + mirrored-net verified); :material-timer-sand: awaiting join — [node doc](../../docs/cluster-node-kaiser-laptop.md) |
-| **MacBook Pro** | client only — `kubectl` / `helm`, GitOps/CI | — | — | n/a |
+| **Windows PC** (`KAISER-DESKTOP`, `192.168.18.2`) | k3s **server** + GPU worker; always-on, hosts the API | RTX 3060 Ti, **8 GB** | server | :material-check: **live** — server up, device plugin applied — [node doc](../../docs/cluster-node-windows-pc.md) |
+| **Windows laptop** (`KAISER-LAPTOP`, `192.168.18.142`) | k3s **agent** + GPU worker | RTX 4070 Laptop, **8 GB** | agent | :material-check: **joined**, advertising `nvidia.com/gpu` — [node doc](../../docs/cluster-node-kaiser-laptop.md) |
+| **MacBook Pro** | client only — `kubectl` / `helm`, GitOps/CI | — | — | :material-timer-sand: kubeconfig pending |
 
-> **Model sizing:** both GPUs are **8 GB** (PC RTX 3060 Ti, laptop RTX 4070 Laptop),
-> so target 8 GB — the model must fit whichever card a replica lands on.
+> **Model sizing:** both cards are **8 GB** (PC RTX 3060 Ti, laptop RTX 4070 Laptop),
+> so the nodes are evenly matched — target **8 GB** for the model on both.
 
 Per-machine hardware/network/state lives in the node docs:
 [Windows PC](../../docs/cluster-node-windows-pc.md) ·
@@ -115,9 +115,9 @@ curl -sfL https://get.k3s.io | K3S_URL=https://192.168.18.2:6443 \
 > creates a `nvidia` `RuntimeClass` by itself — no template editing needed.
 
 Because the toolkit was installed *before* k3s started, the `nvidia` runtime is
-already present. Install the device plugin **once from the server** and pin it to
-that runtime class; the DaemonSet is cluster-wide, so it covers every node that
-joins (no per-node re-apply):
+already present (`kubectl get runtimeclass` should list `nvidia`). Install the device
+plugin **once from the server** and pin it to that runtime class; the DaemonSet is
+cluster-wide, so it covers every node that joins (no per-node re-apply):
 
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/v0.16.2/deployments/static/nvidia-device-plugin.yml
@@ -133,12 +133,35 @@ kubectl -n kube-system patch daemonset nvidia-device-plugin-daemonset \
 
 ```bash
 # copy /etc/rancher/k3s/k3s.yaml from the PC, then on the Mac:
-#   - replace 127.0.0.1 with the PC's LAN IP
-#   - save as ~/.kube/config (or KUBECONFIG=...)
+scp <pc-user>@192.168.18.2:/etc/rancher/k3s/k3s.yaml ~/.kube/config
+sed -i '' 's#127.0.0.1#192.168.18.2#' ~/.kube/config     # macOS sed; point at the PC
 kubectl get nodes -o wide        # should list PC (control-plane) + laptop
-kubectl get nodes -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.allocatable.nvidia\.com/gpu}{"\n"}{end}'
-# each node should report 1 GPU
+kubectl get nodes -o custom-columns=NODE:.metadata.name,GPU:'.status.allocatable.nvidia\.com/gpu'
+# each GPU node should report 1
 ```
+
+The Mac uses this kubeconfig, **not** a node-token (see
+[Credentials](#credentials--how-each-machine-authenticates)). If `kubectl` fails TLS
+because the IP isn't in the cert, reinstall the server with `--tls-san 192.168.18.2`.
+
+## Credentials — how each machine authenticates
+
+Two different secrets, easy to confuse:
+
+| Machine | How it authenticates | Secret it holds |
+|---------|---------------------|-----------------|
+| **PC** (server) | it *is* the control plane | issues everything below |
+| **Laptop** (agent) | kubelet joins the node pool with the server's **node-token** | the single `K10…` server node-token |
+| **Mac** (client) | `kubectl` / `helm` hit the API with an **admin kubeconfig** | `k3s.yaml` (TLS client cert + key + CA) |
+
+- The **node-token is not per-node** — there is **one** server token that *every*
+  agent uses to join. It grants no `kubectl` access.
+- The **Mac never joins the cluster** and needs **no token**. It needs the admin
+  kubeconfig (`/etc/rancher/k3s/k3s.yaml` from the PC), with `127.0.0.1` swapped for
+  the PC's LAN IP.
+- If `kubectl` from the Mac fails TLS with an IP/SAN error, reinstall the server with
+  `--tls-san <PC-LAN-IP>` (or add it and restart `k3s`) so the API cert covers that
+  address.
 
 ## Firewall ports (between machines)
 
@@ -162,6 +185,75 @@ Once both nodes show `nvidia.com/gpu: 1`, you have a real GPU cluster. Then:
 4. Re-run the load + capture from [`../loadtest/`](../loadtest/) and drop the real
    numbers into [`../WRITEUP.md`](../WRITEUP.md). This time scale-out is genuine
    GPU scale-out.
+
+## Running metrics from the Mac
+
+With `~/.kube/config` pointed at the PC, the Mac drives all observability through
+`kubectl` / `helm` — no SSH into the nodes. Three tiers, cheapest first.
+
+### 1. Cluster + GPU inventory (works now)
+
+```bash
+kubectl get nodes -o wide
+# GPUs each node advertises:
+kubectl get nodes -o custom-columns=NODE:.metadata.name,GPU:'.status.allocatable.nvidia\.com/gpu'
+# live node / pod resource usage (k3s bundles metrics-server):
+kubectl top nodes
+kubectl top pods -A
+```
+
+### 2. Ad-hoc GPU snapshot — `nvidia-smi` in a pod
+
+Schedules a throwaway pod onto a GPU node and runs `nvidia-smi`. Save as
+`gpu-smi.yaml`:
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: gpu-smi
+spec:
+  runtimeClassName: nvidia          # k3s auto-creates this; verify: kubectl get runtimeclass
+  restartPolicy: Never
+  # nodeName: kaiser-laptop         # uncomment to pin to a specific GPU node
+  containers:
+    - name: smi
+      image: nvidia/cuda:12.4.1-base-ubuntu22.04
+      args: ["nvidia-smi"]
+      resources:
+        limits:
+          nvidia.com/gpu: 1
+```
+
+```bash
+kubectl apply -f gpu-smi.yaml && kubectl logs -f gpu-smi
+kubectl delete pod gpu-smi
+```
+
+### 3. Continuous GPU telemetry → Prometheus + Grafana (real dashboards)
+
+The device plugin only advertises GPU *count* — not utilization, memory, temp, or
+power. For those, run an exporter on the GPU nodes and scrape it with the capstone's
+**kube-prometheus-stack**.
+
+```bash
+helm repo add gpu-helm-charts https://nvidia.github.io/dcgm-exporter/helm-charts
+helm repo update
+helm install dcgm-exporter gpu-helm-charts/dcgm-exporter \
+  -n monitoring --create-namespace --set serviceMonitor.enabled=true
+# then port-forward Grafana to the Mac and import dashboard 12239 (NVIDIA DCGM):
+kubectl -n monitoring port-forward svc/<grafana-svc> 3000:80   # http://localhost:3000
+```
+
+> **WSL2 + GeForce caveat:** DCGM has limited support on consumer GeForce cards under
+> WSL2 — some `DCGM_FI_*` fields may come back empty. If so, use
+> [`nvidia_gpu_exporter`](https://github.com/utkuozdemir/nvidia_gpu_exporter) instead;
+> it just parses `nvidia-smi` (which works fine in WSL) and exposes util / mem / temp /
+> power on `:9835/metrics`. Scrape it with a `PodMonitor` the same way.
+
+These GPU signals sit alongside the inference metrics (TTFT, KV-cache %, queue depth)
+the capstone already scrapes from vLLM — together they're what the autoscaling and the
+write-up are built on.
 
 ## Reality check
 

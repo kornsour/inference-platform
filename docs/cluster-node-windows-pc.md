@@ -18,8 +18,9 @@ is the **client** (`kubectl` / `helm`, GitOps/CI).
 > All Kubernetes nodes are **Linux** (WSL2 Ubuntu); the NVIDIA GPU is reached via
 > WSL2 GPU passthrough. You never run Kubernetes on Windows directly.
 
-> Specs/state captured 2026-06-23. Re-run [Appendix A](#appendix-a--capturing-specs)
-> after hardware/driver/OS changes.
+> **k3s server is live (2026-06-23)** at `192.168.18.2`; the laptop agent has joined
+> and both nodes advertise a GPU. Specs/state captured 2026-06-23 — re-run
+> [Appendix A](#appendix-a--capturing-specs) after hardware/driver/OS changes.
 
 ---
 
@@ -32,13 +33,14 @@ is the **client** (`kubectl` / `helm`, GitOps/CI).
 | NVIDIA Container Toolkit (in WSL) | :material-check: done — `nvidia-ctk` v1.19.1 |
 | Mirrored networking (`.wslconfig`) | :material-check: done — WSL `hostname -I` == host `192.168.18.2` |
 | **k3s server installed** | :material-check: done — v1.35.5+k3s1, node `kaiser-desktop` `Ready` (control-plane), internal IP `192.168.18.2` |
-| Firewall: 6443/TCP, 8472/UDP, 10250/TCP open on the LAN | :material-check: done — 3 inbound rules scoped to `192.168.18.0/24` |
+| Firewall: 6443/TCP, 8472/UDP, 10250/TCP open on the LAN | :material-check: done — 3 inbound rules scoped to `192.168.18.0/24`; flannel VXLAN established |
 | NVIDIA device plugin (advertise `nvidia.com/gpu`) | :material-check: done — node reports `nvidia.com/gpu: 1`; validated with a `runtimeClassName: nvidia` pod running `nvidia-smi -L` (saw the 3060 Ti) |
-| LAN IP + node-token handed to the laptop & Mac | :material-timer-sand: in progress — IP `192.168.18.2` + node-token captured; laptop join is the next action |
+| LAN IP + node-token handed to the laptop & Mac | :material-check: laptop joined (`192.168.18.142`), advertising `nvidia.com/gpu` · :material-timer-sand: Mac kubeconfig pending |
 
 This node is **fully up**: k3s server `Ready`, GPU advertised and validated end to
-end. What remains for the two-GPU cluster is the
-[laptop](cluster-node-kaiser-laptop.md) joining with this server's IP + token.
+end. The [laptop](cluster-node-kaiser-laptop.md) has since **joined** with this
+server's IP + token, so both GPUs are now in the cluster; what remains is handing the
+[Mac](#4-setup-steps-this-machine) a kubeconfig.
 
 > **GPU-advertise gotcha (hit on 2026-06-23):** do **not** run
 > `nvidia-ctk runtime configure --config=…/config.toml.tmpl` against k3s — it
@@ -97,8 +99,8 @@ end. What remains for the two-GPU cluster is the
 | Setting | Value |
 |---------|-------|
 | Active interface | **Wired Ethernet** — Realtek Gaming 2.5GbE Family Controller |
-| Current IPv4 | `192.168.18.2` (Ethernet MAC `D8-BB-C1-CC-BE-D9`, link 2.5 Gbps) |
-| Subnet / gateway | `192.168.18.0/24`, gateway `192.168.18.1` (same LAN as the laptop's `.140`) |
+| Current IPv4 | `192.168.18.2` (Ethernet MAC `D8-BB-C1-CC-BE-D9`, link 2.5 Gbps; k3s API endpoint `:6443`) |
+| Subnet / gateway | `192.168.18.0/24`, gateway `192.168.18.1` (same LAN as the laptop's `.142`) |
 | Workgroup | `WORKGROUP` (not domain-joined) |
 | Other NICs | Wi-Fi + a second Ethernet present but unused (self-assigned `169.254.x.x`) |
 | **WSL2 networking** | **Mirrored** — WSL `hostname -I` returns `192.168.18.2`, the same address Windows uses; k3s advertises this LAN IP as its internal IP. |
@@ -164,7 +166,9 @@ State as of capture: **WSL2 + Ubuntu and GPU passthrough are already done**
    there too — no need to re-apply it on the laptop.
 
 6. **Hand the Mac a kubeconfig:** copy `/etc/rancher/k3s/k3s.yaml` from this PC to the
-   Mac, replace `127.0.0.1` with `192.168.18.2`, and save as `~/.kube/config`.
+   Mac, replace `127.0.0.1` with `192.168.18.2`, and save as `~/.kube/config`. The Mac
+   authenticates with this kubeconfig, **not** the node-token — see
+   [Credentials](../phase-2-capstone/gpu-node/diy-cluster.md#credentials--how-each-machine-authenticates).
 
 ---
 
