@@ -1,0 +1,98 @@
+# Plain vLLM Deployment (no KServe) — real-GPU serving for the Phase 2 numbers.
+# Serves an OpenAI-compatible API + Prometheus vllm:* metrics on :8000.
+# Pinned to the laptop 4070 (most free VRAM) for the single-replica baseline.
+# Model is parameterised via the MODEL arg block so the same manifest does 1.5B then 3B.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: inference
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm-qwen
+  namespace: inference
+  labels:
+    app: vllm-qwen
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate          # single GPU per node — can't run old+new pod at once
+  selector:
+    matchLabels:
+      app: vllm-qwen
+  template:
+    metadata:
+      labels:
+        app: vllm-qwen
+    spec:
+      runtimeClassName: nvidia
+      nodeSelector:
+        kubernetes.io/hostname: kaiser-laptop      # 4070, ~7.9 GB free
+      # hostNetwork + Default DNS: the cross-node pod overlay is down under WSL2
+      # mirrored mode, so pods can't reach CoreDNS (which lives on the other node)
+      # and can't resolve huggingface.co. Using the host's DNS sidesteps that and
+      # also makes :8000 scrapeable by node IP. See docs/cluster-troubleshooting-log.md
+      hostNetwork: true
+      dnsPolicy: Default
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:latest
+          args:
+            - --model=Qwen/Qwen2.5-1.5B-Instruct
+            - --served-model-name=qwen
+            - --gpu-memory-utilization=0.85          # fit within free VRAM (not total)
+            - --max-model-len=8192                    # cap KV-cache footprint
+            - --port=8000
+          ports:
+            - name: http
+              containerPort: 8000
+          resources:
+            limits:
+              nvidia.com/gpu: 1
+          volumeMounts:
+            - name: dshm
+              mountPath: /dev/shm
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 40
+            periodSeconds: 10
+            failureThreshold: 90                      # allow time for image pull + model download
+      volumes:
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 2Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vllm-qwen
+  namespace: inference
+  labels:
+    app: vllm-qwen
+spec:
+  selector:
+    app: vllm-qwen
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: vllm-qwen
+  namespace: inference
+  labels:
+    release: kube-prometheus-stack        # match the Prometheus podMonitorSelector
+spec:
+  selector:
+    matchLabels:
+      app: vllm-qwen
+  podMetricsEndpoints:
+    - port: http
+      path: /metrics
+      interval: 15s

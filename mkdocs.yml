@@ -87,6 +87,7 @@ nav:
       - Brief: phase-1-foundations/brief.md
   - Phase 2 — Capstone:
       - Overview: phase-2-capstone/README.md
+      - Real-GPU results: phase-2-capstone/gpu-node/real-gpu-results.md
       - Write-up Template: phase-2-capstone/WRITEUP-template.md
       - Runbook Template: phase-2-capstone/runbook-template.md
 
