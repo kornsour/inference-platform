@@ -100,33 +100,34 @@ hostname -I                                           # note the PC's LAN IP
 ### Laptop — k3s agent
 
 ```bash
-# in WSL2 Ubuntu on the laptop
-curl -sfL https://get.k3s.io | K3S_URL=https://<PC-LAN-IP>:6443 \
-  K3S_TOKEN=<token-from-server> sh -
+# in WSL2 Ubuntu on the laptop  (server is up at 192.168.18.2)
+curl -sfL https://get.k3s.io | K3S_URL=https://192.168.18.2:6443 \
+  K3S_TOKEN=<token-from-server> sh -     # token: sudo cat /var/lib/rancher/k3s/server/node-token on the PC
 ```
 
-### Both nodes — advertise the GPU
+### Advertise the GPU (device plugin)
 
-On **k3s v1.27+ (v1.35 here)** the NVIDIA runtime is **auto-detected**: because the
-NVIDIA Container Toolkit is installed, k3s writes the `nvidia` runtime into its
-containerd config and creates a `nvidia` RuntimeClass on its own. The manual
-`nvidia-ctk runtime configure` step older guides show is **not needed**.
+> **Do not run `nvidia-ctk runtime configure` against k3s.** Pointing it at
+> `/var/lib/rancher/k3s/agent/etc/containerd/config.toml.tmpl` overwrites k3s's
+> containerd template with a minimal one that drops the flannel CNI settings — the
+> node goes `NotReady` with `cni plugin not initialized`. (Verified the hard way on
+> 2026-06-23.) k3s **auto-detects** the NVIDIA Container Toolkit at startup and
+> creates a `nvidia` `RuntimeClass` by itself — no template editing needed.
 
-So all that's required is the device plugin — apply it **once** (from the server or
-the Mac) and it covers every GPU node, scheduling onto each as it joins:
+Because the toolkit was installed *before* k3s started, the `nvidia` runtime is
+already present (`kubectl get runtimeclass` should list `nvidia`). Install the device
+plugin **once from the server** and pin it to that runtime class; the DaemonSet is
+cluster-wide, so it covers every node that joins (no per-node re-apply):
 
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/v0.16.2/deployments/static/nvidia-device-plugin.yml
-kubectl get runtimeclass            # confirm 'nvidia' exists
+kubectl -n kube-system patch daemonset nvidia-device-plugin-daemonset \
+  --type merge -p '{"spec":{"template":{"spec":{"runtimeClassName":"nvidia"}}}}'
 ```
 
-> If your k3s is older and didn't auto-detect, run the manual step on each node and
-> restart k3s (`sudo systemctl restart k3s`, or `k3s-agent` on the laptop):
->
-> ```bash
-> sudo nvidia-ctk runtime configure --runtime=containerd \
->   --config=/var/lib/rancher/k3s/agent/etc/containerd/config.toml.tmpl
-> ```
+> If a node installs the toolkit *after* k3s is already running, restart k3s there so
+> it re-detects the runtime: `sudo systemctl restart k3s` (server) or
+> `sudo systemctl restart k3s-agent` (agent).
 
 ### Mac — point kubectl at the cluster
 
