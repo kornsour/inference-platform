@@ -91,6 +91,9 @@ nav:
           - Troubleshooting log (case study): docs/cluster-troubleshooting-log.md
       - Real-GPU results: phase-2-capstone/gpu-node/real-gpu-results.md
       - Architecture decisions & trade-offs: phase-2-capstone/architecture-decisions.md
+      - Custom KEDA scaler (Go): phase-2-capstone/keda-inference-scaler/README.md
+      - GitOps & CI: gitops/README.md
+      - OSS contribution: phase-2-capstone/oss-contribution.md
       - Write-up: phase-2-capstone/WRITEUP.md
       - Templates:
           - Write-up template: phase-2-capstone/WRITEUP-template.md

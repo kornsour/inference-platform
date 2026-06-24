@@ -1,0 +1,37 @@
+# KEDA ScaledObject for the real GPU cluster — autoscales the vLLM Deployment on the
+# inference signal (queue depth + KV-cache utilization), NOT CPU. Uses KEDA's built-in
+# prometheus scaler (two triggers; KEDA scales on whichever is hotter), so it needs no
+# custom image. For the single-trigger composite version see the Go external scaler under
+# keda-inference-scaler/.
+#
+# serverAddress is the laptop NODE IP + hostNetwork Prometheus (:9090), not the ClusterIP:
+# cross-node ClusterIP routing is down under WSL2 mirrored mode (and NodePort is iptables-
+# only, so it isn't delivered either) — so Prometheus is patched to hostNetwork and KEDA
+# reaches it over plain LAN TCP (see docs/cluster-troubleshooting-log.md).
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: vllm-qwen
+  namespace: inference
+spec:
+  scaleTargetRef:
+    name: vllm-qwen            # the plain vLLM Deployment (one replica per GPU at max)
+  minReplicaCount: 1
+  maxReplicaCount: 2           # two physical GPUs
+  pollingInterval: 15
+  cooldownPeriod: 60
+  triggers:
+    - type: prometheus
+      metadata:
+        serverAddress: http://192.168.18.142:9090
+        metricName: vllm_queue_depth
+        query: sum(vllm:num_requests_waiting)
+        threshold: "3"
+        activationThreshold: "1"
+    - type: prometheus
+      metadata:
+        serverAddress: http://192.168.18.142:9090
+        metricName: vllm_kv_cache_util
+        query: max(vllm:gpu_cache_usage_perc)
+        threshold: "0.7"
+        activationThreshold: "0.05"

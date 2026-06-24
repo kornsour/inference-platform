@@ -13,8 +13,11 @@ This is also where existing EKS / GitOps / Prometheus skills give a large head s
 - :material-check: **Cluster-wide GPU + vLLM telemetry** in Prometheus (hostNetwork exporters + a vLLM PodMonitor, working around the overlay).
 - :material-check: **Two-GPU load-balanced scale-out** — one replica per card behind an external nginx LB; both GPUs serve in parallel (~2,360 tok/s aggregate).
 - :material-check: **KServe InferenceService** variant + comparison — same model the platform way (RawDeployment + huggingface/vLLM runtime); serving numbers identical to the plain Deployment, so KServe's cost is **operational, not runtime** ([results](gpu-node/real-gpu-results.md), [architecture decisions](architecture-decisions.md)).
-- :material-timer-sand: **KEDA wired on the real cluster** (validated locally; the 3B run shows the signal would fire).
-- :material-timer-sand: Inference **gateway**, **GitOps/CI**, and an **OSS PR** still ahead.
+- :material-check: **KEDA wired on the real cluster** — a `ScaledObject` autoscaling vLLM on **queue depth + KV-cache** (the HPA reads `0/3, 0/700m`), not CPU. Prometheus exposed via hostNetwork so KEDA can reach it across the broken overlay.
+- :material-check: **Custom Go KEDA external scaler** — composite KV-cache + queue-depth signal in one trigger ([`keda-inference-scaler/`](keda-inference-scaler/README.md)).
+- :material-check: **CI + GitOps** — GitHub Actions validates manifests + builds/tests the Go scaler; Argo CD `Application`s declare the platform ([`gitops/`](../gitops/README.md)).
+- :material-progress-clock: **OSS PR** — prepared and ready to submit ([oss-contribution.md](oss-contribution.md)); submitting is yours to do.
+- :material-timer-sand: Inference **gateway** (Envoy AI Gateway) still ahead.
 
 - [`local/`](local/) — the runnable local stack (mock vLLM + KEDA + Prometheus/Grafana), one command: `make up`
 - [`gpu-node/`](gpu-node/README.md) — the **DIY two-GPU cluster** (two 8 GB consumer GPUs as k3s GPU workers) serving real vLLM at $0, incl. the [runbook](gpu-node/diy-cluster.md)
@@ -51,17 +54,17 @@ This is also where existing EKS / GitOps / Prometheus skills give a large head s
 ### Build
 
 - [x] Deploy an open-weights model on Kubernetes via **KServe** with **vLLM** as the engine — done both ways: a [plain Deployment](gpu-node/vllm-plain.yaml) *and* a [KServe `InferenceService`](gpu-node/kserve-inferenceservice.yaml) (RawDeployment + huggingface/vLLM runtime). Numbers + the operational comparison in [real-gpu-results.md](gpu-node/real-gpu-results.md); trade-offs in [architecture-decisions.md](architecture-decisions.md).
-- [x] **Autoscale with KEDA** driven by TTFT p95 or KV-cache utilization from Prometheus, **not CPU** *(validated locally: 1→5 on queue depth; on real GPU the 3B run drives KV-cache to 99.5 % and queue depth to 12, so the trigger would fire — wiring KEDA on the GPU cluster is the remaining step)* — see [`k8s/keda-scaledobject.yaml`](k8s/keda-scaledobject.yaml). *This is the single most important thing to get working.*
+- [x] **Autoscale with KEDA** driven by TTFT p95 or KV-cache utilization from Prometheus, **not CPU** *(validated locally 1→5; now **live on the GPU cluster** — a ScaledObject autoscaling vLLM on queue-depth + KV-cache, HPA reading `0/3, 0/700m`, not CPU)* — see [`k8s/keda-scaledobject.yaml`](k8s/keda-scaledobject.yaml) and [`gpu-node/keda-scaledobject-gpu.yaml`](gpu-node/keda-scaledobject-gpu.yaml). *This is the single most important thing to get working.*
 - [ ] Add an **inference gateway** (Envoy AI Gateway) for token-aware rate limiting and model routing.
 - [x] **Instrument everything**: Prometheus scrape + Grafana dashboards for TTFT, inter-token latency, throughput, queue depth, GPU utilization. Define one SLO and wire one alert. *(done locally; dashboard + TTFT-p95 SLO + alerts — and now live on the DIY cluster: cross-node GPU + vLLM metrics in one Prometheus)*
 - [x] **Load test** and capture saturation behavior — see [`loadtest/`](loadtest/). *(captured locally; plus real-GPU load tests on the 2-GPU cluster — [real-gpu-results.md](gpu-node/real-gpu-results.md))*
 
 ### Ship real code + treat it like a product platform (Staff EM credibility)
 
-- [ ] Build at least one genuine code component in a **named language** — a token-aware router or **custom KEDA external scaler in Go**, or extend the Python benchmark harness. Not just YAML. *(started: [gpu-loadtest.py](loadtest/gpu-loadtest.py), a dependency-free streaming load generator; the Go scaler is still the headline code component.)*
-- [ ] Land **one small PR to an OSS inference project** (vLLM / KServe / KEDA) and link it from the write-up.
-- [ ] **GitOps** (Argo CD or Flux) for declarative deploys; **CI/CD** (lint → test → build → deploy preview); **IaC** (Terraform or Helm); an automated **smoke/integration test** after each deploy. → *"engineering excellence through automation, tooling, and standardization across deployment, testing, and operations."*
-- [ ] Note in the write-up that the stack (KServe, KEDA, Prometheus, Envoy) is **CNCF** — a preferred qualification you can claim.
+- [x] Build at least one genuine code component in a **named language** — a **custom KEDA external scaler in Go** ([`keda-inference-scaler/`](keda-inference-scaler/README.md)) that scales on a *composite* KV-cache + queue-depth signal (one trigger the built-in scaler can't express), plus the [`gpu-loadtest.py`](loadtest/gpu-loadtest.py) harness. Not just YAML.
+- [ ] Land **one small PR to an OSS inference project** (vLLM / KServe / KEDA) and link it from the write-up. *(prepared & ready to submit — [oss-contribution.md](oss-contribution.md); the actual PR is a manual step under your GitHub identity.)*
+- [x] **GitOps + CI** — GitHub Actions ([`ci.yml`](../.github/workflows/ci.yml)) lints/schema-validates every manifest and builds + tests the Go scaler; Argo CD `Application`s ([`gitops/`](../gitops/README.md)) declare the platform for continuous reconciliation. *(Argo CD install on the DIY cluster + a Terraform/Helm IaC pass remain.)* → *"engineering excellence through automation, tooling, and standardization."*
+- [x] The stack is **CNCF** — KServe, KEDA, Prometheus, and Argo CD are all CNCF projects (Argo is graduated; KEDA graduated; Prometheus graduated) — a preferred qualification to claim.
 
 ### Reinforce alongside the build
 
