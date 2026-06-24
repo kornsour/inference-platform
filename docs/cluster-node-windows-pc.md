@@ -1,4 +1,4 @@
-# GPU Cluster Node — Windows PC (k3s server)
+# GPU Cluster Node — `KAISER-DESKTOP` (k3s server)
 
 The **always-on Windows PC** is the **k3s _server_** *and* a GPU worker in the DIY
 two-GPU cluster. Because the control plane must stay reachable, the API lives here;
@@ -12,74 +12,120 @@ is the **client** (`kubectl` / `helm`, GitOps/CI).
    Mac (client)              THIS — Windows PC (server)   Windows laptop (agent)
    kubectl + helm   ──API──▶  WSL2 Ubuntu                 WSL2 Ubuntu
    GitOps / CI                k3s SERVER + GPU worker      k3s AGENT + GPU worker
+   KAISER-DESKTOP             RTX 3060 Ti, 8 GB            RTX 4070 Laptop, 8 GB
 ```
 
-> **Specs not yet captured.** This machine is being set up (2026-06-23). Run
-> [Appendix A](#appendix-a--capturing-specs) once Ubuntu is installed and paste the
-> results into §2 / §3 so this node doc matches the laptop's.
+> All Kubernetes nodes are **Linux** (WSL2 Ubuntu); the NVIDIA GPU is reached via
+> WSL2 GPU passthrough. You never run Kubernetes on Windows directly.
+
+> Specs/state captured 2026-06-23. Re-run [Appendix A](#appendix-a--capturing-specs)
+> after hardware/driver/OS changes.
 
 ---
 
-## 1. Setup status
+## 1. Setup status — 2026-06-23
 
 | Step | State |
 |------|-------|
-| WSL2 + Ubuntu installed | :material-checkbox-blank-outline: to do |
-| Windows NVIDIA driver + WSL GPU passthrough (`nvidia-smi` in WSL) | :material-checkbox-blank-outline: |
-| NVIDIA Container Toolkit (in WSL) | :material-checkbox-blank-outline: |
-| Mirrored networking (`.wslconfig`) | :material-checkbox-blank-outline: |
-| **k3s server installed** | :material-checkbox-blank-outline: |
-| Firewall: 6443/TCP, 8472/UDP, 10250/TCP open on the LAN | :material-checkbox-blank-outline: |
-| NVIDIA device plugin (advertise `nvidia.com/gpu`) | :material-checkbox-blank-outline: (after the laptop joins) |
-| LAN IP + node-token handed to the laptop & Mac | :material-checkbox-blank-outline: |
+| WSL2 + Ubuntu installed | :material-check: done (Ubuntu 26.04 LTS, WSL 2.6.1.0, systemd on) |
+| Windows NVIDIA driver + WSL GPU passthrough | :material-check: `nvidia-smi -L` in WSL lists the RTX 3060 Ti |
+| NVIDIA Container Toolkit (in WSL) | :material-check: done — `nvidia-ctk` v1.19.1 |
+| Mirrored networking (`.wslconfig`) | :material-check: done — WSL `hostname -I` == host `192.168.18.2` |
+| **k3s server installed** | :material-check: done — v1.35.5+k3s1, node `kaiser-desktop` `Ready` (control-plane), internal IP `192.168.18.2` |
+| Firewall: 6443/TCP, 8472/UDP, 10250/TCP open on the LAN | :material-check: done — 3 inbound rules scoped to `192.168.18.0/24` |
+| NVIDIA device plugin (advertise `nvidia.com/gpu`) | :material-check: done — node reports `nvidia.com/gpu: 1`; validated with a `runtimeClassName: nvidia` pod running `nvidia-smi -L` (saw the 3060 Ti) |
+| LAN IP + node-token handed to the laptop & Mac | :material-timer-sand: in progress — IP `192.168.18.2` + node-token captured; laptop join is the next action |
+
+This node is **fully up**: k3s server `Ready`, GPU advertised and validated end to
+end. What remains for the two-GPU cluster is the
+[laptop](cluster-node-kaiser-laptop.md) joining with this server's IP + token.
+
+> **GPU-advertise gotcha (hit on 2026-06-23):** do **not** run
+> `nvidia-ctk runtime configure --config=…/config.toml.tmpl` against k3s — it
+> overwrites k3s's containerd template and drops the flannel CNI config, leaving the
+> node `NotReady` (`cni plugin not initialized`). k3s **auto-detects** the NVIDIA
+> Container Toolkit at startup and creates a `nvidia` `RuntimeClass` on its own. The
+> working recipe is in [§4 step 5](#4-setup-steps-this-machine).
 
 ---
 
 ## 2. Hardware & OS specs
 
-_TBD — capture with [Appendix A](#appendix-a--capturing-specs) after WSL setup._
-
 | Component | Detail |
 |-----------|--------|
-| Make / model | _TBD_ |
-| Hostname | _TBD_ |
-| OS | _TBD_ |
-| CPU | _TBD_ |
-| RAM | _TBD_ |
-| **Discrete GPU** | _TBD — the plan assumed a 12 GB card; verify with `nvidia-smi`_ |
-| VRAM | _TBD_ |
+| **Make / model** | Custom desktop — MSI MS-7C91 (B550) motherboard |
+| **Hostname** | `KAISER-DESKTOP` |
+| **OS** | Windows 11 Pro, version 10.0.26200 (build 26200), 64-bit |
+| **CPU** | AMD Ryzen 5 5600X — 6 cores / 12 threads |
+| **RAM** | 32 GB (31.9 GiB usable) |
+| **Storage** | Samsung 990 PRO 2 TB NVMe (primary) + 860 EVO 1 TB + 850 EVO 250 GB (SATA SSDs) |
+| **Discrete GPU** | **NVIDIA GeForce RTX 3060 Ti** |
+| **WSL distro** | Ubuntu 26.04 LTS (kernel 6.6.87.2), default user `ajkai`, systemd enabled |
 
-> **Cluster sizing:** the deployed model is sized to the **smaller** of the two
-> GPUs. The laptop is **8 GB**, so plan for 8 GB regardless of this card's VRAM.
+### GPU details (the part that matters)
+
+| GPU property | Value |
+|--------------|-------|
+| Device | NVIDIA GeForce RTX 3060 Ti |
+| VRAM | **8 GB GDDR6** (8192 MiB reported by `nvidia-smi`) |
+| Power cap | 200 W (desktop card — full TGP) |
+| Driver version | 591.86 (Windows; provides the WSL CUDA stack) |
+| CUDA driver capability | **CUDA 13.1** (max version the driver supports) |
+| Compute capability | 8.6 (Ampere, `sm_86`) |
+| GPU UUID | `GPU-0129195d-5d3e-0b2e-9f35-e17ef08e538f` |
+| WDDM mode | Yes (consumer driver model) |
+
+**Cluster-planning notes:**
+
+- **8 GB VRAM — same as the laptop, so the cluster ceiling is unchanged.** Both
+  nodes are 8 GB, so the model that lands on *both* still targets 8 GB
+  (see [§4 of the laptop doc](cluster-node-kaiser-laptop.md#4-model-sizing-constraint)).
+  The original plan assumed a 12 GB PC card; the actual card is 8 GB, which simply
+  keeps the existing 8 GB sizing.
+- **Full 200 W desktop TGP** — unlike the 55 W laptop 4070, this card sustains its
+  clocks, so per-replica throughput here should beat the laptop's on long runs.
+  Different GPU generations are fine: Kubernetes schedules by `nvidia.com/gpu`
+  **count**, not model.
+- **WDDM driver model** (not TCC) — normal for consumer GPUs. The desktop
+  compositor reserves a little VRAM. The GPU still passes through to WSL2 and to
+  containers via the NVIDIA Container Toolkit.
 
 ---
 
-## 3. Network
+## 3. Network state
 
 | Setting | Value |
 |---------|-------|
-| LAN IP | _TBD — `hostname -I` in WSL (mirrored) or `ipconfig` on Windows_ |
-| Subnet / gateway | `192.168.18.0/24`, gateway `192.168.18.1` (same LAN as the laptop) |
-| WSL2 networking | Mirrored (set in `.wslconfig`) — WSL shares the host LAN IP |
+| Active interface | **Wired Ethernet** — Realtek Gaming 2.5GbE Family Controller |
+| Current IPv4 | `192.168.18.2` (Ethernet MAC `D8-BB-C1-CC-BE-D9`, link 2.5 Gbps) |
+| Subnet / gateway | `192.168.18.0/24`, gateway `192.168.18.1` (same LAN as the laptop's `.140`) |
+| Workgroup | `WORKGROUP` (not domain-joined) |
+| Other NICs | Wi-Fi + a second Ethernet present but unused (self-assigned `169.254.x.x`) |
+| **WSL2 networking** | **Mirrored** — WSL `hostname -I` returns `192.168.18.2`, the same address Windows uses; k3s advertises this LAN IP as its internal IP. |
 
-**Give the PC a stable IP.** The laptop agent's join URL and the Mac's kubeconfig
-both point at this machine, so a changed IP breaks the cluster. Use a DHCP
-reservation in the router (`http://192.168.18.1`) or a static IP. Wired Ethernet is
-preferred for the always-on server.
+**Wired, low, and stable — ideal for the always-on server.** This PC already sits on
+`192.168.18.2` over 2.5 GbE on the same switch/LAN as the laptop. The laptop agent's
+join URL and the Mac's kubeconfig will both point here, so **pin this IP**: add a
+DHCP reservation for MAC `D8-BB-C1-CC-BE-D9` in the router (`http://192.168.18.1`),
+or set a static IP. A changed IP breaks the cluster.
+
+**Mirrored networking is still required.** Today WSL2 sits behind NAT
+(`172.28.35.147`), so the in-WSL k3s server isn't reachable from the laptop/Mac.
+After enabling mirrored mode ([step 2](#4-setup-steps-this-machine)), `hostname -I`
+inside WSL should return `192.168.18.2` — the same address Windows uses.
 
 ---
 
 ## 4. Setup steps (this machine)
 
-**Steps 1–4 are identical to the laptop.** Full commands:
-[`diy-cluster.md` → Both Windows machines](../phase-2-capstone/gpu-node/diy-cluster.md#both-windows-machines-pc-and-laptop).
+State as of capture: **WSL2 + Ubuntu and GPU passthrough are already done**
+(`nvidia-smi -L` works in WSL). What remains:
 
-1. `wsl --install -d Ubuntu` (Admin PowerShell; reboot; create the Ubuntu user) +
-   `wsl --update`.
-2. In WSL: `nvidia-smi` lists the GPU. The **Windows** NVIDIA driver provides WSL
-   CUDA — do **not** install a Linux GPU driver inside WSL.
-3. In WSL: install the **NVIDIA Container Toolkit** (the doc's 3 commands).
-4. Create `C:\Users\<you>\.wslconfig`, then `wsl --shutdown`:
+1. **NVIDIA Container Toolkit** (in WSL2 Ubuntu) — the 3 commands in
+   [`diy-cluster.md` → NVIDIA Container Toolkit](../phase-2-capstone/gpu-node/diy-cluster.md#both-windows-machines-pc-and-laptop).
+   Do **not** install a Linux GPU driver inside WSL; the Windows driver provides CUDA.
+
+2. **Mirrored networking** — create `C:\Users\ajkai\.wslconfig`, then `wsl --shutdown`:
 
    ```ini
    [wsl2]
@@ -87,26 +133,38 @@ preferred for the always-on server.
    firewall=true
    ```
 
-**PC-only — install the k3s server** (in WSL2 Ubuntu):
+   Verify after restart: `hostname -I` in WSL returns `192.168.18.2`.
 
-```bash
-curl -sfL https://get.k3s.io | sh -s - --write-kubeconfig-mode 644
-hostname -I                                        # LAN IP — give to the laptop + Mac
-sudo cat /var/lib/rancher/k3s/server/node-token    # node-token — give to the laptop
-```
+3. **Install the k3s server** (in WSL2 Ubuntu):
 
-**Open the firewall** for the agent + kubelet, scoped to the LAN subnet — see the
-[ports table](../phase-2-capstone/gpu-node/diy-cluster.md#firewall-ports-between-machines):
-**6443/TCP** (API server), **8472/UDP** (flannel VXLAN), **10250/TCP** (kubelet).
+   ```bash
+   curl -sfL https://get.k3s.io | sh -s - --write-kubeconfig-mode 644
+   hostname -I                                        # LAN IP — give to the laptop + Mac
+   sudo cat /var/lib/rancher/k3s/server/node-token    # node-token — give to the laptop
+   ```
 
-**Advertise the GPU** (run on both nodes, after the laptop has joined): point k3s's
-bundled containerd at the NVIDIA runtime and install the device plugin — see
-[`diy-cluster.md` → Both nodes](../phase-2-capstone/gpu-node/diy-cluster.md#both-nodes--advertise-the-gpu).
-On the **server** the restart is `sudo systemctl restart k3s` (the laptop agent uses
-`k3s-agent`).
+4. **Open the firewall** for the agent + kubelet, scoped to the LAN subnet — see the
+   [ports table](../phase-2-capstone/gpu-node/diy-cluster.md#firewall-ports-between-machines):
+   **6443/TCP** (API server), **8472/UDP** (flannel VXLAN), **10250/TCP** (kubelet).
 
-**Hand the Mac a kubeconfig:** copy `/etc/rancher/k3s/k3s.yaml` from this PC to the
-Mac, replace `127.0.0.1` with this PC's LAN IP, and save as `~/.kube/config`.
+5. **Advertise the GPU.** With the NVIDIA Container Toolkit installed (step 1), k3s
+   auto-detects it on (re)start and creates a `nvidia` `RuntimeClass` — you do **not**
+   run `nvidia-ctk runtime configure` (that breaks the CNI; see the callout in §1).
+   Install the device plugin and pin it to that runtime class:
+
+   ```bash
+   k3s kubectl apply -f https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/v0.16.2/deployments/static/nvidia-device-plugin.yml
+   k3s kubectl -n kube-system patch daemonset nvidia-device-plugin-daemonset \
+     --type merge -p '{"spec":{"template":{"spec":{"runtimeClassName":"nvidia"}}}}'
+   k3s kubectl get nodes -o jsonpath='{range .items[*]}{.metadata.name}{"  gpu="}{.status.allocatable.nvidia\.com/gpu}{"\n"}{end}'
+   # expect: kaiser-desktop  gpu=1
+   ```
+
+   The device-plugin DaemonSet is cluster-wide, so once the laptop joins it schedules
+   there too — no need to re-apply it on the laptop.
+
+6. **Hand the Mac a kubeconfig:** copy `/etc/rancher/k3s/k3s.yaml` from this PC to the
+   Mac, replace `127.0.0.1` with `192.168.18.2`, and save as `~/.kube/config`.
 
 ---
 
@@ -118,7 +176,7 @@ On Windows (PowerShell):
 Get-CimInstance Win32_ComputerSystem | Select Manufacturer,Model,TotalPhysicalMemory,Name,Workgroup
 Get-CimInstance Win32_Processor | Select Name,NumberOfCores,NumberOfLogicalProcessors,MaxClockSpeed
 Get-CimInstance Win32_OperatingSystem | Select Caption,Version,BuildNumber,OSArchitecture
-nvidia-smi
+nvidia-smi --query-gpu=name,memory.total,driver_version,compute_cap,power.limit,uuid --format=csv
 Get-NetIPConfiguration | ? {$_.IPv4Address}
 Get-NetAdapter | ? Status -eq 'Up' | Select Name,InterfaceDescription,LinkSpeed,MacAddress
 ```

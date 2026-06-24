@@ -9,12 +9,12 @@ capstone story end to end, for $0.
 
 | Machine | Role | GPU | k3s | Setup status (2026-06-23) |
 |---------|------|-----|-----|---------------------------|
-| **Windows PC** | k3s **server** + GPU worker; always-on, hosts the API | _TBD (plan assumed 12 GB)_ | server | :material-timer-sand: being set up — [node doc](../../docs/cluster-node-windows-pc.md) |
+| **Windows PC** (`KAISER-DESKTOP`) | k3s **server** + GPU worker; always-on, hosts the API | RTX 3060 Ti, **8 GB** | server | :material-timer-sand: WSL2 + GPU passthrough done; bringing up toolkit / mirrored-net / k3s server — [node doc](../../docs/cluster-node-windows-pc.md) |
 | **Windows laptop** (`KAISER-LAPTOP`) | k3s **agent** + GPU worker | RTX 4070 Laptop, **8 GB** | agent | :material-check: prepped (WSL2 + toolkit + mirrored-net verified); :material-timer-sand: awaiting join — [node doc](../../docs/cluster-node-kaiser-laptop.md) |
 | **MacBook Pro** | client only — `kubectl` / `helm`, GitOps/CI | — | — | n/a |
 
-> **Model sizing:** size the deployed model to the **smaller** card. The laptop is
-> **8 GB**, so target 8 GB even if the PC has more VRAM.
+> **Model sizing:** both GPUs are **8 GB** (PC RTX 3060 Ti, laptop RTX 4070 Laptop),
+> so target 8 GB — the model must fit whichever card a replica lands on.
 
 Per-machine hardware/network/state lives in the node docs:
 [Windows PC](../../docs/cluster-node-windows-pc.md) ·
@@ -100,22 +100,34 @@ hostname -I                                           # note the PC's LAN IP
 ### Laptop — k3s agent
 
 ```bash
-# in WSL2 Ubuntu on the laptop
-curl -sfL https://get.k3s.io | K3S_URL=https://<PC-LAN-IP>:6443 \
-  K3S_TOKEN=<token-from-server> sh -
+# in WSL2 Ubuntu on the laptop  (server is up at 192.168.18.2)
+curl -sfL https://get.k3s.io | K3S_URL=https://192.168.18.2:6443 \
+  K3S_TOKEN=<token-from-server> sh -     # token: sudo cat /var/lib/rancher/k3s/server/node-token on the PC
 ```
 
-### Both nodes — advertise the GPU
+### Advertise the GPU (device plugin)
 
-Point k3s's bundled containerd at the NVIDIA runtime, then install the device
-plugin so nodes advertise `nvidia.com/gpu`:
+> **Do not run `nvidia-ctk runtime configure` against k3s.** Pointing it at
+> `/var/lib/rancher/k3s/agent/etc/containerd/config.toml.tmpl` overwrites k3s's
+> containerd template with a minimal one that drops the flannel CNI settings — the
+> node goes `NotReady` with `cni plugin not initialized`. (Verified the hard way on
+> 2026-06-23.) k3s **auto-detects** the NVIDIA Container Toolkit at startup and
+> creates a `nvidia` `RuntimeClass` by itself — no template editing needed.
+
+Because the toolkit was installed *before* k3s started, the `nvidia` runtime is
+already present. Install the device plugin **once from the server** and pin it to
+that runtime class; the DaemonSet is cluster-wide, so it covers every node that
+joins (no per-node re-apply):
 
 ```bash
-sudo nvidia-ctk runtime configure --runtime=containerd \
-  --config=/var/lib/rancher/k3s/agent/etc/containerd/config.toml.tmpl
-sudo systemctl restart k3s   # (k3s-agent on the laptop)
 kubectl apply -f https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/v0.16.2/deployments/static/nvidia-device-plugin.yml
+kubectl -n kube-system patch daemonset nvidia-device-plugin-daemonset \
+  --type merge -p '{"spec":{"template":{"spec":{"runtimeClassName":"nvidia"}}}}'
 ```
+
+> If a node installs the toolkit *after* k3s is already running, restart k3s there so
+> it re-detects the runtime: `sudo systemctl restart k3s` (server) or
+> `sudo systemctl restart k3s-agent` (agent).
 
 ### Mac — point kubectl at the cluster
 

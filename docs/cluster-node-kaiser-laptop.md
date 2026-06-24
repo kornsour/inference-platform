@@ -31,11 +31,13 @@ GitOps/CI); it runs no cluster workloads itself.
 | Windows NVIDIA driver + WSL GPU passthrough | :material-check: `nvidia-smi` in WSL lists the RTX 4070 |
 | NVIDIA Container Toolkit (in WSL) | :material-check: v1.19.1 |
 | Mirrored networking (`.wslconfig`) | :material-check: verified — WSL `hostname -I` == host `192.168.18.140` |
-| **k3s agent — joined to the PC server** | :material-timer-sand: **pending** — needs the PC server's LAN IP + node-token |
+| **k3s agent — joined to the PC server** | :material-timer-sand: **in progress** — server is up at `192.168.18.2`; first `k3s-agent` start failed, under diagnosis |
 | NVIDIA device plugin (advertise `nvidia.com/gpu`) | :material-timer-sand: pending (after join) |
 
-What remains is **only the join** — see [§5](#5-remaining-steps--join-the-cluster).
-It is blocked until the PC k3s server exists.
+The PC k3s **server is now up** (node `kaiser-desktop` `Ready`, GPU advertised), so the
+blocker is cleared. What remains is **the join** — see
+[§5](#5-remaining-steps--join-the-cluster). The first agent start errored; diagnose
+with `sudo journalctl -xeu k3s-agent --no-pager | tail -60` on the laptop.
 
 ---
 
@@ -120,23 +122,25 @@ Start with `Qwen/Qwen2.5-3B-Instruct` (FP16) or a 7B-AWQ build, and set
 
 ## 5. Remaining steps — join the cluster
 
-Everything below is blocked on the **PC k3s server** existing. Once it's up, you'll
-have its **LAN IP** and **node-token** (`sudo cat /var/lib/rancher/k3s/server/node-token`
-on the PC). Then, in this laptop's WSL2 Ubuntu:
+The PC k3s server is **up at `192.168.18.2`** (node `kaiser-desktop` `Ready`, GPU
+advertised). Grab its **node-token** (`sudo cat /var/lib/rancher/k3s/server/node-token`
+on the PC), then in this laptop's WSL2 Ubuntu:
 
 ```bash
-# 1) Join as a k3s agent
-curl -sfL https://get.k3s.io | K3S_URL=https://<PC-LAN-IP>:6443 \
+# 1) Join as a k3s agent  (server is up at 192.168.18.2)
+curl -sfL https://get.k3s.io | K3S_URL=https://192.168.18.2:6443 \
   K3S_TOKEN=<token-from-server> sh -
-
-# 2) Point k3s's bundled containerd at the NVIDIA runtime, then advertise the GPU
-sudo nvidia-ctk runtime configure --runtime=containerd \
-  --config=/var/lib/rancher/k3s/agent/etc/containerd/config.toml.tmpl
-sudo systemctl restart k3s-agent
-kubectl apply -f https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/v0.16.2/deployments/static/nvidia-device-plugin.yml
 ```
 
-From the **Mac**, confirm this node appears and advertises a GPU:
+**No GPU-advertise steps needed on the laptop.** The NVIDIA Container Toolkit is
+already installed here (v1.19.1), so the k3s-agent auto-detects the `nvidia` runtime
+on start, and the device-plugin DaemonSet (applied once from the server) schedules
+onto this node automatically. Do **not** run `nvidia-ctk runtime configure` against
+k3s — it overwrites k3s's containerd template and breaks the CNI (see
+[`diy-cluster.md`](../phase-2-capstone/gpu-node/diy-cluster.md#advertise-the-gpu-device-plugin)).
+If this node ends up `Ready` but reports `gpu=0`, just `sudo systemctl restart k3s-agent`.
+
+From the **Mac** (or the PC), confirm this node appears and advertises a GPU:
 
 ```bash
 kubectl get nodes -o wide        # KAISER-LAPTOP should be Ready
