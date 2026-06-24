@@ -69,12 +69,12 @@
 
 - [ ] Read disaggregated prefill/decode (NVIDIA Dynamo, llm-d). If budget allows, run prefill and decode on separate pools.
 - [ ] Add a **canary or shadow** deployment path so a new model version takes a slice of traffic before full rollout.
-- [ ] Write a short [`runbook.md`](runbook-template.md) and run one **game-day** failure (kill a pod mid-load). Pair it with a postmortem.
+- [ ] Write a short `runbook.md` and run one **game-day** failure (kill a pod mid-load). Pair it with a postmortem.
 
 ### Milestone
 
 - [ ] A **working demo** I can screen-share: model serving, autoscaling on an inference signal, live dashboards.
-- [ ] A **public write-up** ([`WRITEUP-template.md`](WRITEUP-template.md)): architecture, load-test results, cost-per-million-tokens, design decisions, next steps.
+- [ ] A **public write-up** ([`WRITEUP.md`](WRITEUP.md)): architecture, load-test results, cost-per-million-tokens, design decisions, next steps.
 - [ ] At least **one real code component** in the repo plus **one OSS PR** linked, and the platform **deploys via GitOps/CI/CD** reproducibly from a clean clone.
 
 ## Getting a cluster and GPU cheaply

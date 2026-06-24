@@ -96,9 +96,6 @@ nav:
       - GitOps & CI: gitops/README.md
       - Bootstrap (spin up / tear down): bootstrap/README.md
       - Write-up: phase-2-capstone/WRITEUP.md
-      - Templates:
-          - Write-up template: phase-2-capstone/WRITEUP-template.md
-          - Runbook template: phase-2-capstone/runbook-template.md
 
 # Keep private career-strategy material out of the published site entirely
 # (not just unlinked from the nav). README.md is excluded because it carries the
@@ -110,6 +107,8 @@ exclude_docs: |
   /docs/role.md
   /phase-3-positioning/
   /phase-2-capstone/oss-contribution.md
+  /phase-2-capstone/WRITEUP-template.md
+  /phase-2-capstone/runbook-template.md
 
 extra:
   social:
