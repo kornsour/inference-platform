@@ -25,7 +25,7 @@ networking blocker found 2026-06-24, and lays out the next steps on the laptop.
 
 ## 1. Is it needed? By component
 
-The capstone's headline differentiator is **real multi-replica GPU autoscaling**: KEDA
+The capstone centers on **multi-replica GPU autoscaling**: KEDA
 scaling vLLM across two physical GPUs on the KV-cache / TTFT signal
 ([diy-cluster.md](../phase-2-capstone/gpu-node/diy-cluster.md)). The question isn't
 "does Kubernetes need pod networking", it's whether **that specific demo** does. It
@@ -62,7 +62,7 @@ specialized networking layered on top that a home setup deliberately doesn't nee
 - **Disaggregated prefill/decode** (NVIDIA Dynamo, llm-d). Prefill pods **stream KV cache
   to decode pods across nodes**: heavy, latency-sensitive cross-node pod traffic by design.
 - **Service mesh, token-aware gateways, multi-region load balancing**, all built on a
-  rock-solid pod network.
+  healthy pod network.
 
 > At small scale pod-to-pod networking serves the control and observability
 > plane; at production scale it becomes a first-class performance surface. That's the difference

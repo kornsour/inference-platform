@@ -5,7 +5,7 @@ cloud GPU?
 
 **Answer:** yes, and this project does exactly that. Two Windows machines with
 **8 GB** consumer GPUs (an RTX 3060 Ti and an RTX 4070 Laptop), joined as a k3s
-cluster, serve real vLLM and demonstrate genuine multi-replica GPU scale-out for
+cluster, serve real vLLM and demonstrate multi-replica GPU scale-out for
 **$0**.
 
 ## What the local GPUs give you

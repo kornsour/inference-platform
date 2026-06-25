@@ -6,7 +6,7 @@ The literacy target for Phase 1. The goal is to explain each of these out loud, 
 
 - **Prefill:** the first forward pass that processes the entire input prompt and produces the first output token. Compute-bound: work scales with prompt length, saturating GPU compute (FLOPs). Long prompts make prefill expensive.
 - **Decode:** the autoregressive loop that generates one token at a time after prefill. Memory-bandwidth-bound: each step reads the whole model plus KV cache from GPU memory to produce one token, so it's limited by memory bandwidth, not compute.
-- **Disaggregated prefill/decode:** running prefill and decode on separate GPU pools because they have opposite bottlenecks. This lets each pool be sized and scaled independently. It is the headline architecture in NVIDIA Dynamo and llm-d.
+- **Disaggregated prefill/decode:** running prefill and decode on separate GPU pools because they have opposite bottlenecks. This lets each pool be sized and scaled independently. It is the defining architecture in NVIDIA Dynamo and llm-d.
 
 ## Memory and batching
 

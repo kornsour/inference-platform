@@ -26,7 +26,7 @@ for cornering a bug like this is the real takeaway.
 
 ## 1. What I was building
 
-The capstone's headline is real multi-replica GPU autoscaling: KEDA scaling vLLM
+The capstone centers on multi-replica GPU autoscaling: KEDA scaling vLLM
 across two physical GPUs (a desktop RTX 3060 Ti and a laptop RTX 4070) on an
 inference-aware signal. That needs Prometheus to scrape inference and GPU metrics from pods
 on both machines. The scrape target is a pod on the other node, so it depends on
@@ -94,7 +94,7 @@ I reverted. VXLAN is in fact the correct backend for this topology. Killed.
 
 ### :material-close: Theory 3: VXLAN packets have bad UDP checksums
 
-This one looked extremely promising. A packet capture of the encapsulated traffic showed:
+This one looked promising. A packet capture of the encapsulated traffic showed:
 
 ```
 192.168.18.2.48366 > 192.168.18.142.8472: [bad udp cksum 0xa664 -> 0xf1c6!] VXLAN, vni 1
