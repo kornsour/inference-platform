@@ -129,5 +129,5 @@ that gap explicitly is part of the point.
 
 The honest through-line: on a constrained cluster, the simplest thing that works beats the
 most capable thing that doesn't. Plain Deployment shipped real numbers immediately. KServe
-adds genuine platform value but also genuine operational weight, and on degraded networking
+adds platform value but also operational weight, and on degraded networking
 that weight shows up as real friction. Knowing when each is worth it is the decision.
