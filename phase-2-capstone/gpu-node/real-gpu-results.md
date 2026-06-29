@@ -1,7 +1,7 @@
 # Real-GPU serving results (Phase 2)
 
-Real vLLM serving numbers captured on the DIY cluster's GPU nodes, filling the
-`_TODO: GPU_` section of the [WRITEUP](../WRITEUP.md). These come from an actual
+Real vLLM serving numbers captured on the DIY cluster's GPU nodes, feeding the
+real-GPU section of the [WRITEUP](../WRITEUP.md). These come from an actual
 vLLM engine (PagedAttention, continuous batching, true KV-cache metrics), not the
 local mock.
 

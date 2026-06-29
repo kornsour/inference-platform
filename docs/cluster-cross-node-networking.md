@@ -1,27 +1,22 @@
-# Cross-node pod networking: why it matters and current status
+# Cross-node pod networking: why it matters
 
 Does the DIY two-GPU cluster actually need **pod-to-pod networking across nodes**, or
-is "a GPU pod on each box" enough? This page answers that for the capstone, records the
-networking blocker found 2026-06-24, and lays out the next steps on the laptop.
+is "a GPU pod on each box" enough? This page answers that for the capstone and records
+how the cross-node networking blocker found 2026-06-24 was diagnosed and resolved.
 
 - **Cluster runbook (all machines):** [`diy-cluster.md`](../phase-2-capstone/gpu-node/diy-cluster.md)
 - **Nodes:** [Windows PC — k3s server](cluster-node-windows-pc.md) · [KAISER-LAPTOP — k3s agent](cluster-node-kaiser-laptop.md)
 
-!!! warning "Status (2026-06-24): cross-node pod overlay is **not** passing traffic"
-    Both GPU nodes are `Ready` and each advertises `nvidia.com/gpu: 1`, but **cross-node
-    pod-to-pod traffic fails** (server `flannel.1` RX = 0 lifetime). Node `Ready` only
-    means the agent's kubelet reaches the API server outbound. It does **not** prove
-    the pod overlay works. This is a WSL2 mirrored-mode inbound delivery problem, not a
-    flannel backend choice. Details in [§2](#2-current-status--the-blocker).
-
-!!! success "Resolved (2026-06-24): root cause found + metrics unblocked"
-    Direct tandem testing later pinned the **actual** root cause, which refines the note
-    above. Mirrored mode does **not** drop generic inbound UDP (plain UDP tested 30/30 both
-    ways). It only delivers inbound UDP to ports with a **process-owned userspace socket**,
-    and flannel's VXLAN endpoint on 8472 is an **in-kernel** socket (no PID) that the
-    port-mirroring skips, so the overlay never enters the peer VM. The two-GPU metrics
-    plane was then unblocked by running the exporters with `hostNetwork` and scraping by
-    node IP. Full details: [Troubleshooting log](cluster-troubleshooting-log.md).
+!!! success "Resolved (2026-06-24): root-caused and worked around"
+    Both GPU nodes are `Ready` and advertise `nvidia.com/gpu: 1`, but cross-node
+    pod-to-pod traffic failed (server `flannel.1` RX = 0 lifetime). Direct tandem testing
+    pinned the root cause: WSL2 mirrored mode does **not** drop generic inbound UDP (plain
+    UDP tested 30/30 both ways) — it only delivers inbound UDP to ports with a
+    **process-owned userspace socket**, and flannel's VXLAN endpoint on 8472 is an
+    **in-kernel** socket (no PID) that the port-mirroring skips, so the overlay never
+    enters the peer VM. The two-GPU metrics plane was then unblocked by running the
+    exporters with `hostNetwork` and scraping by node IP. Full walk-through:
+    [Troubleshooting log](cluster-troubleshooting-log.md).
 
 ## 1. Is it needed? By component
 
@@ -70,7 +65,11 @@ specialized networking layered on top that a home setup deliberately doesn't nee
 
 ---
 
-## 2. Current status: the blocker
+## 2. The blocker, as first diagnosed
+
+> This section records the **initial** diagnosis. The true root cause (a kernel-socket
+> vs. mirrored-mode port-mirroring interaction, not a firewall) was pinned later — see
+> [§3](#3-how-it-was-resolved) and the [Troubleshooting log](cluster-troubleshooting-log.md).
 
 Both nodes run WSL2 **mirrored networking** (`.wslconfig`: `networkingMode=mirrored`,
 `firewall=true`). The overlay is flannel **VXLAN** (UDP 8472).
@@ -98,75 +97,26 @@ UDP 8472 is not delivered into the remote WSL2 VM**. Two corroborating facts:
 
 The desktop's Hyper-V firewall is already open (`DefaultInboundAction = Allow`, plus
 **triplicate** `8472` allow rules, fingerprints of prior fix attempts), so the desktop is
-not the blocker. Attention now turns to the **laptop**.
+not the blocker. This pointed the investigation at the **laptop** — though the real cause
+turned out to be neither host's firewall (see [§3](#3-how-it-was-resolved)).
 
 ---
 
-## 3. Next steps: laptop side
+## 3. How it was resolved
 
-Run these on the **laptop** (`KAISER-LAPTOP`, `192.168.18.142`). The goal: get inbound
-UDP 8472 delivered into its WSL2 VM so flannel can decapsulate.
+The first plan was to chase inbound UDP 8472 on the **laptop** with Hyper-V firewall
+rules, on the theory that a missing inbound `Allow` was dropping VXLAN. Direct tandem
+testing then disproved it: generic inbound UDP reached the laptop's WSL fine (30/30 both
+ways), so the firewall was never the gate. The real cause was structural — mirrored mode
+only forwards inbound UDP to **process-owned** sockets, and flannel's VXLAN endpoint is an
+in-kernel socket with no owning process, invisible to that port-mirroring.
 
-### Step 1: verify the laptop's WSL firewall (Windows PowerShell, Admin)
-
-```powershell
-# WSL Hyper-V firewall defaults (mirrored mode routes WSL traffic through this):
-Get-NetFirewallHyperVVMSetting -PolicyStore ActiveStore |
-  Select-Object Name, DefaultInboundAction, DefaultOutboundAction
-
-# Existing rules for the k3s ports:
-Get-NetFirewallHyperVRule |
-  Where-Object { $_.DisplayName -match '8472|6443|10250|flannel|k3s' } |
-  Select-Object DisplayName, Direction, Action
-```
-
-If there is **no inbound Allow for UDP 8472**, that's the most likely cause.
-
-### Step 2: add the inbound UDP 8472 rule (Windows PowerShell, Admin)
-
-`{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}` is WSL's fixed Hyper-V VM-creator ID.
-
-```powershell
-New-NetFirewallHyperVRule -Name "k3s-flannel-vxlan-8472" `
-  -DisplayName "k3s flannel VXLAN 8472" -Direction Inbound `
-  -VMCreatorId '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}' `
-  -Protocol UDP -LocalPorts 8472 -Action Allow
-```
-
-(6443/TCP and 10250/TCP are already working, since the agent joined and `kubectl exec`
-succeeded, so they need no change. Add them the same way only if Step 1 shows them missing.)
-
-### Step 3: isolate UDP delivery (only if Step 2 doesn't fix it)
-
-Confirms whether *any* inbound UDP reaches the laptop's WSL, or it's a deeper mirrored-mode
-limitation. Run the listener on the **laptop WSL**, send from the **desktop WSL**:
-
-```bash
-# Laptop WSL (listener):
-python3 -c "import socket;s=socket.socket(2,2);s.bind(('0.0.0.0',51888));print(s.recvfrom(2048))"
-# Desktop WSL (sender):
-echo HELLO | nc -u -w1 192.168.18.142 51888
-```
-
-- **Arrives** → generic UDP inbound works; the issue was VXLAN/8472-specific (firewall).
-- **Nothing** → mirrored-mode isn't delivering inbound UDP at all. Try `firewall=false` in
-  the laptop's `.wslconfig` plus `wsl --shutdown` as a test; if that's still dead, treat
-  cross-node overlay as not viable on this setup and **fall back to single-GPU Option A**.
-
-### Step 4: verify the fix from the server
-
-After the laptop change (and `wsl --shutdown` if you edited `.wslconfig`, which restarts
-k3s), re-test on the **server**:
-
-```bash
-# RX should now climb when laptop pods send across (was stuck at 0):
-cat /sys/class/net/flannel.1/statistics/rx_packets
-# Then a real cross-node pod-to-pod ping should reach 0% loss
-# (schedule one busybox pod per node via nodeName and ping pod IP to pod IP).
-```
-
-When `flannel.1` RX increments and a cross-node pod ping succeeds, the overlay is healthy
-and the two-GPU KEDA autoscaling demo is unblocked.
+The fix was to sidestep the overlay for the plane the demo actually needs: run the metrics
+exporters (and vLLM) with `hostNetwork` and scrape them by node IP over plain LAN TCP, so
+both GPUs report into one Prometheus. The full investigation — the wrong turns and the
+one-way tests that killed each theory — is the
+[Troubleshooting log](cluster-troubleshooting-log.md), and the real-overlay options
+(Tailscale, WSL `bridged` mode) are covered there too.
 
 ---
 

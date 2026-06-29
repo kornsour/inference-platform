@@ -2,7 +2,7 @@
 
 **Goal:** build a small but real inference platform on Kubernetes that autoscales on inference-aware signals. This is the heart of the project. It mirrors, at homelab scale, what a production inference platform does at global scale: serve open-weights models on GPUs, scale them on the signals that actually predict saturation, and make the whole thing observable, declarative, and reproducible.
 
-**Status: in progress.** The autoscaling control plane is built and validated locally with no GPU on a `kind` cluster. KEDA scaled the deployment from 1 to 5 replicas on the queue-depth signal, with Grafana dashboards, an SLO, and alerts. The build has since moved onto real GPUs. The [DIY two-GPU cluster](gpu-node/diy-cluster.md) is live and serving real vLLM, with cross-node GPU and inference metrics flowing into a single Prometheus.
+**Status: the core platform is built and validated on real GPUs.** The autoscaling control plane was first validated locally with no GPU on a `kind` cluster, where KEDA scaled the deployment from 1 to 5 replicas on the queue-depth signal, with Grafana dashboards, an SLO, and alerts. The build then moved onto real GPUs: the [DIY two-GPU cluster](gpu-node/diy-cluster.md) is live and serving real vLLM, with cross-node GPU and inference metrics flowing into a single Prometheus. The one core layer still pending live bring-up is the Envoy AI Gateway; the reinforcement items (canary/shadow, a game-day, disaggregated prefill/decode) are tracked as next steps in the checklist below.
 
 **Real-GPU progress on the DIY two-GPU cluster (RTX 3060 Ti + RTX 4070, 8 GB each):**
 
