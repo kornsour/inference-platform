@@ -1,11 +1,11 @@
 # Building an autoscaling LLM inference platform on Kubernetes
 
-> **Status: draft.** The control plane is built and validated end to end on a
-> local cluster, and real-GPU serving numbers are captured on the DIY two-GPU
-> cluster (Qwen2.5-1.5B and 3B on real vLLM), see
+> **Status: the platform is built and the results below are final.** The control
+> plane is validated end to end on a local cluster, and real-GPU serving numbers
+> are captured on the DIY two-GPU cluster (Qwen2.5-1.5B and 3B on real vLLM), see
 > [`gpu-node/real-gpu-results.md`](gpu-node/real-gpu-results.md). The two-GPU
-> load-balanced scale-out run and the KServe comparison are done. The Envoy AI
-> Gateway live bring-up is the remaining piece.
+> load-balanced scale-out run and the KServe comparison are done. The one layer
+> still pending live bring-up is the Envoy AI Gateway.
 
 ## TL;DR
 
