@@ -1,13 +1,13 @@
-site_name: AI Inference
+site_name: Inference Platform
 site_description: >-
   A self-directed program to build hands-on depth in LLM inference serving —
   GPU scheduling, serving engines, inference-aware autoscaling, and the
   observability and economics of running models at scale.
 site_author: kornsour
-site_url: https://kornsour.github.io/ai-inference/
+site_url: https://kornsour.github.io/inference-platform/
 
-repo_name: kornsour/ai-inference
-repo_url: https://github.com/kornsour/ai-inference
+repo_name: kornsour/inference-platform
+repo_url: https://github.com/kornsour/inference-platform
 edit_uri: edit/main/
 
 # Use the repo root as the docs directory so README.md is the homepage and the
@@ -113,4 +113,4 @@ exclude_docs: |
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/kornsour/ai-inference
+      link: https://github.com/kornsour/inference-platform

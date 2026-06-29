@@ -1,8 +1,10 @@
-# AI Inference
+# Inference Platform
 
 A self-directed learning project to build genuine, hands-on depth in **LLM inference serving** — the platform layer underneath generative AI models: GPU scheduling, high-throughput serving engines, inference-aware autoscaling, and the observability and economics of running models at scale.
 
 It is structured as a 6-month program aligned to two target roles on the same platform: **Staff Engineering Manager, Copilot API** (primary, more attainable) and **Principal Engineering Manager, AI Inference Platform** (stretch). The full strategy, gap analysis, and milestone tracking live in [`docs/project-plan.md`](docs/project-plan.md); the role crosswalk is in [`docs/role-comparison.md`](docs/role-comparison.md).
+
+> **Scope note.** This repo is the **platform / SRE-leaning** inference project: how you *operate* model serving at scale (autoscaling, GitOps, observability, cost/SLOs). For the **low-level performance-engineering** counterpart — latency/throughput/memory benchmarking and kernel/KV-cache/batching/quantization optimizations with before/after numbers — see the companion repo **[`llm-inference-performance`](https://github.com/kornsour/llm-inference-performance)**.
 
 ## What is AI inference?
 
@@ -46,7 +48,7 @@ Supporting docs:
 
 ## Docs site
 
-This repo is published as a documentation site with [MkDocs](https://www.mkdocs.org/) + [Material](https://squidfunk.github.io/mkdocs-material/): **<https://kornsour.github.io/ai-inference/>** (built and deployed from `main` by [`.github/workflows/docs.yml`](.github/workflows/docs.yml)).
+This repo is published as a documentation site with [MkDocs](https://www.mkdocs.org/) + [Material](https://squidfunk.github.io/mkdocs-material/): **<https://kornsour.github.io/inference-platform/>** (built and deployed from `main` by [`.github/workflows/docs.yml`](.github/workflows/docs.yml)).
 
 Run it locally:
 
