@@ -15,8 +15,8 @@ built for this capstone — to KEDA's community registry.
 
 `kedacore/external-scalers` is a **community index, not a code monorepo** — every entry
 links to a scaler hosted in its *own* repo (e.g. `balchua/artemis-ext-scaler`,
-`devjoes/github-runner-autoscaler`). So the scaler needed a public home, and **this capstone
-repo is private** — it holds private career-strategy material — so it can't be the source.
+`devjoes/github-runner-autoscaler`). So the scaler needed its own dedicated, installable
+home rather than living as a subdirectory of this capstone repo.
 
 The fix was to publish the scaler as its **own standalone public repo**,
 [`kornsour/keda-inference-scaler`](https://github.com/kornsour/keda-inference-scaler):
@@ -45,9 +45,9 @@ community-hosted model used here.)
 
 ## Why it counts
 
-A genuine upstream contribution to a **CNCF** project in the exact domain of the role,
-backed by working, tested, CI-built code you can speak to in depth — not a drive-by typo
-fix. Once merged, link it from the [write-up](WRITEUP.md).
+A genuine upstream contribution to a **CNCF** project in the exact domain of this capstone,
+backed by working, tested, CI-built code — not a drive-by typo fix. Once merged, link it
+from the [write-up](WRITEUP.md).
 
 ## Remaining (manual)
 

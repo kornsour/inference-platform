@@ -97,15 +97,11 @@ nav:
       - Bootstrap (spin up / tear down): bootstrap/README.md
       - Write-up: phase-2-capstone/WRITEUP.md
 
-# Keep private career-strategy material out of the published site entirely
-# (not just unlinked from the nav). README.md is excluded because it carries the
-# candid gap analysis / role targeting; the public homepage is index.md.
+# README.md is excluded because index.md is the intended public homepage
+# (docs_dir is the repo root, so both would otherwise render). The template
+# files are working scaffolds, not published content.
 exclude_docs: |
   /README.md
-  /docs/project-plan.md
-  /docs/role-comparison.md
-  /docs/role.md
-  /phase-3-positioning/
   /phase-2-capstone/oss-contribution.md
   /phase-2-capstone/WRITEUP-template.md
   /phase-2-capstone/runbook-template.md
