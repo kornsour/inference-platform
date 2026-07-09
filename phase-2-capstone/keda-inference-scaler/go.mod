@@ -1,4 +1,4 @@
-module github.com/kornsour/ai-inference/phase-2-capstone/keda-inference-scaler
+module github.com/kornsour/inference-platform/phase-2-capstone/keda-inference-scaler
 
 go 1.23
 

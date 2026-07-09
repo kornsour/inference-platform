@@ -1,4 +1,4 @@
-CLUSTER ?= ai-inference
+CLUSTER ?= inference-platform
 IMAGE   ?= mock-vllm:local
 
 .PHONY: up cluster keda monitoring image deploy status watch port-forward load grafana prometheus down

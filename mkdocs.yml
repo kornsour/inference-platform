@@ -1,8 +1,8 @@
 site_name: Inference Platform
 site_description: >-
-  A self-directed program to build hands-on depth in LLM inference serving —
-  GPU scheduling, serving engines, inference-aware autoscaling, and the
-  observability and economics of running models at scale.
+  An autoscaling LLM inference platform on Kubernetes — KEDA scaling on
+  request-queue depth and KV-cache utilization via a custom Go external scaler,
+  validated on a DIY two-GPU cluster with real vLLM serving.
 site_author: kornsour
 site_url: https://kornsour.github.io/inference-platform/
 

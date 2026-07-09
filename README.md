@@ -1,8 +1,53 @@
 # Inference Platform
 
-A self-directed learning project to build genuine, hands-on depth in **LLM inference serving** — the platform layer underneath generative AI models: GPU scheduling, high-throughput serving engines, inference-aware autoscaling, and the observability and economics of running models at scale.
+> An autoscaling **LLM inference platform on Kubernetes** that scales vLLM on
+> inference-aware signals — request-queue depth and KV-cache utilization, not CPU —
+> through a custom KEDA external scaler, validated on a DIY two-GPU cluster with
+> real vLLM serving.
 
-> **Scope note.** This repo is the **platform / SRE-leaning** inference project: how you *operate* model serving at scale (autoscaling, GitOps, observability, cost/SLOs). For the **low-level performance-engineering** counterpart — latency/throughput/memory benchmarking and kernel/KV-cache/batching/quantization optimizations with before/after numbers — see the companion repo **[`llm-inference-performance`](https://github.com/kornsour/llm-inference-performance)**.
+**Docs site:** <https://kornsour.github.io/inference-platform/> · **Capstone write-up:** [`phase-2-capstone/WRITEUP.md`](phase-2-capstone/WRITEUP.md)
+
+## What I built
+
+- A Kubernetes platform that **autoscales LLM serving on inference-aware signals** —
+  request-queue depth and KV-cache utilization — via a **custom Go KEDA external
+  scaler** ([`keda-inference-scaler/`](phase-2-capstone/keda-inference-scaler/)) that
+  exposes one composite saturation metric. Built and unit-tested in CI.
+- **Mock-first, then real GPUs.** The whole control loop is validated for $0 with a
+  metrics-faithful vLLM mock (identical `vllm:*` metric names), then the same trigger
+  is reproduced on a **DIY two-GPU cluster** running real vLLM (PagedAttention,
+  continuous batching, true KV-cache metrics).
+
+![Architecture](docs/img/architecture.svg)
+
+### Headline results — [full write-up](phase-2-capstone/WRITEUP.md)
+
+- **Autoscaling reacts to the right signal.** Under load, KEDA scaled the serving
+  Deployment **1 → 5 replicas** on queue depth; a load-balanced generator then put the
+  new replicas to work — the non-obvious lesson being that *routing matters as much as
+  scaling* (a `port-forward` pins one pod and starves the scale-out).
+- **Real two-GPU vLLM.** Qwen2.5-1.5B sustains **~2,600 tok/s** and stays compute-bound
+  (never trips the autoscaler); the 3B model's 8.5× smaller KV pool **does** trip the
+  KV-cache/queue trigger — the regime flip that motivates inference-aware scaling. Two
+  8 GB cards load-balanced to **~2,360 tok/s** aggregate; energy cost
+  **~$0.0015–0.005 / 1M tokens**.
+- **KServe vs a plain Deployment.** Same engine, same throughput — KServe's cost is
+  **operational, not runtime**.
+
+![KEDA scale-out under load](docs/img/scale-out.svg)
+
+> **Companion repo.** This is the **platform / SRE-leaning** side — how you *operate*
+> serving at scale (autoscaling, GitOps, observability, cost/SLOs). For the **low-level
+> performance-engineering** counterpart — latency/throughput/memory benchmarking and
+> kernel/KV-cache/batching/quantization work with before/after numbers — see
+> **[`llm-inference-performance`](https://github.com/kornsour/llm-inference-performance)**.
+
+## About this project
+
+Built as self-directed, hands-on depth in LLM inference serving — the platform layer
+underneath generative AI models: GPU scheduling, high-throughput serving engines,
+inference-aware autoscaling, and the observability and economics of running models at
+scale. The two phases below record the path from foundations to the capstone build.
 
 ## What is AI inference?
 
@@ -61,4 +106,4 @@ mkdocs serve   # live preview at http://127.0.0.1:8000
 ## Progress
 
 - [x] **Phase 1** — Can explain prefill vs. decode and TTFT without notes; model served locally with measured TTFT / tokens-per-second; one-page brief written.
-- [ ] **Phase 2** — Model on Kubernetes via KServe/Ray Serve + vLLM; KEDA autoscaling on an inference signal; Prometheus/Grafana dashboards; load test + public write-up.
+- [x] **Phase 2** — Model on Kubernetes via KServe + vLLM; KEDA autoscaling on an inference signal (custom Go external scaler); Prometheus/Grafana + SLO alert; load test on the local mock and on real GPUs; public [write-up](phase-2-capstone/WRITEUP.md). Remaining: live Envoy AI Gateway bring-up.

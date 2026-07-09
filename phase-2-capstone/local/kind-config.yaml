@@ -3,6 +3,6 @@
 # can be wired and validated before any GPU spend.
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
-name: ai-inference
+name: inference-platform
 nodes:
   - role: control-plane

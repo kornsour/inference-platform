@@ -23,7 +23,7 @@ import (
 	"strconv"
 	"time"
 
-	pb "github.com/kornsour/ai-inference/phase-2-capstone/keda-inference-scaler/externalscaler"
+	pb "github.com/kornsour/inference-platform/phase-2-capstone/keda-inference-scaler/externalscaler"
 	"google.golang.org/grpc"
 )
 
