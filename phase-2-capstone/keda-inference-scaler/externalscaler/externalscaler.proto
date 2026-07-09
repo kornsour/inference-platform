@@ -3,7 +3,7 @@
 syntax = "proto3";
 
 package externalscaler;
-option go_package = "github.com/kornsour/ai-inference/phase-2-capstone/keda-inference-scaler/externalscaler";
+option go_package = "github.com/kornsour/inference-platform/phase-2-capstone/keda-inference-scaler/externalscaler";
 
 service ExternalScaler {
   rpc IsActive(ScaledObjectRef) returns (IsActiveResponse) {}

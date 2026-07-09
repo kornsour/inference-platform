@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 320" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif">
+  <rect x="0.5" y="0.5" width="779" height="319" rx="10" fill="#ffffff" stroke="#e2e8f0"/>
+  <text x="24" y="32" font-size="15" font-weight="700" fill="#0f172a">KEDA scale-out under load (local mock run)</text>
+  <text x="24" y="51" font-size="12" fill="#64748b">queue depth crosses the threshold → replicas step 1 → 5</text>
+
+  <!-- legend -->
+  <g font-size="11.5">
+    <rect x="470" y="24" width="12" height="12" rx="2" fill="#c7d2fe" stroke="#6366f1"/>
+    <text x="488" y="34" fill="#334155">queue (waiting)</text>
+    <line x1="600" y1="30" x2="624" y2="30" stroke="#d97706" stroke-width="2.5" stroke-dasharray="5 3"/>
+    <text x="630" y="34" fill="#334155">replicas</text>
+  </g>
+
+  <!-- axes -->
+  <g stroke="#e2e8f0" stroke-width="1">
+    <line x1="70" y1="250" x2="720" y2="250"/>
+    <line x1="70" y1="70" x2="70" y2="250"/>
+  </g>
+  <!-- left axis ticks (queue) -->
+  <g font-size="10.5" fill="#94a3b8" text-anchor="end">
+    <text x="62" y="254">0</text>
+    <text x="62" y="164">100</text>
+    <text x="62" y="74">203</text>
+  </g>
+  <text x="26" y="160" font-size="11" fill="#6366f1" transform="rotate(-90 26 160)" text-anchor="middle">queue depth</text>
+  <!-- right axis ticks (replicas) -->
+  <g font-size="10.5" fill="#94a3b8" text-anchor="start">
+    <text x="726" y="254">1</text>
+    <text x="726" y="164">3</text>
+    <text x="726" y="74">5</text>
+  </g>
+  <text x="756" y="160" font-size="11" fill="#d97706" transform="rotate(90 756 160)" text-anchor="middle">replicas</text>
+
+  <!-- x labels -->
+  <g font-size="10.5" fill="#94a3b8" text-anchor="middle">
+    <text x="70" y="268">t=0s</text>
+    <text x="287" y="268">12s</text>
+    <text x="503" y="268">24s</text>
+    <text x="720" y="268">72s</text>
+  </g>
+
+  <!-- queue area + line: (70,250)(287,223.4)(503,195.9)(720,70) -->
+  <path d="M70,250 L287,223.4 L503,195.9 L720,70 L720,250 L70,250 Z" fill="#c7d2fe" fill-opacity="0.45"/>
+  <path d="M70,250 L287,223.4 L503,195.9 L720,70" fill="none" stroke="#6366f1" stroke-width="2.2"/>
+  <g fill="#6366f1">
+    <circle cx="70" cy="250" r="3"/><circle cx="287" cy="223.4" r="3"/>
+    <circle cx="503" cy="195.9" r="3"/><circle cx="720" cy="70" r="3"/>
+  </g>
+
+  <!-- replicas step line: r=1 until t=24 then 5. y(1)=250 y(5)=70 -->
+  <path d="M70,250 L503,250 L503,70 L720,70" fill="none" stroke="#d97706" stroke-width="2.5" stroke-dasharray="5 3"/>
+
+  <!-- scale-out annotation at t=24 -->
+  <line x1="503" y1="70" x2="503" y2="250" stroke="#0f172a" stroke-width="1" stroke-dasharray="2 3" opacity="0.35"/>
+  <rect x="378" y="86" width="124" height="34" rx="6" fill="#0f172a"/>
+  <text x="440" y="100" font-size="10.5" fill="#ffffff" text-anchor="middle" font-weight="600">SuccessfulRescale</text>
+  <text x="440" y="113" font-size="10" fill="#cbd5e1" text-anchor="middle">queue 61 ≫ threshold 3</text>
+
+  <text x="150" y="300" font-size="10.5" fill="#64748b">Data: phase-2-capstone/WRITEUP.md load test · the same trigger reproduces on real GPU (3B model) in real-gpu-results.md</text>
+</svg>

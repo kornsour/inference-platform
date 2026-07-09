@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 340" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif">
+  <rect x="0.5" y="0.5" width="779" height="339" rx="10" fill="#ffffff" stroke="#e2e8f0"/>
+  <text x="24" y="34" font-size="15" font-weight="700" fill="#0f172a">Autoscaling on inference-aware signals</text>
+  <text x="24" y="53" font-size="12" fill="#64748b">queue depth &amp; KV-cache utilization — not CPU</text>
+
+  <!-- boxes -->
+  <g font-size="12.5" fill="#0f172a" text-anchor="middle">
+    <!-- load -->
+    <rect x="24" y="92" width="96" height="46" rx="8" fill="#f1f5f9" stroke="#cbd5e1"/>
+    <text x="72" y="112" font-weight="600">load</text>
+    <text x="72" y="128" font-size="10.5" fill="#64748b">clients</text>
+
+    <!-- service -->
+    <rect x="156" y="92" width="120" height="46" rx="8" fill="#eef2ff" stroke="#c7d2fe"/>
+    <text x="216" y="112" font-weight="600">Service (LB)</text>
+    <text x="216" y="128" font-size="10.5" fill="#64748b">spreads traffic</text>
+
+    <!-- vllm -->
+    <rect x="312" y="86" width="132" height="58" rx="8" fill="#f1f5f9" stroke="#cbd5e1"/>
+    <text x="378" y="108" font-weight="600">vLLM pods (1–5)</text>
+    <text x="378" y="124" font-size="10.5" fill="#64748b">KServe / Deployment</text>
+    <text x="378" y="137" font-size="10.5" fill="#64748b">→ /metrics (vllm:*)</text>
+
+    <!-- prometheus -->
+    <rect x="480" y="92" width="120" height="46" rx="8" fill="#f1f5f9" stroke="#cbd5e1"/>
+    <text x="540" y="112" font-weight="600">Prometheus</text>
+    <text x="540" y="128" font-size="10.5" fill="#64748b">scrapes metrics</text>
+
+    <!-- keda / scaler -->
+    <rect x="480" y="196" width="120" height="60" rx="8" fill="#eef2ff" stroke="#818cf8"/>
+    <text x="540" y="218" font-weight="700" fill="#4f46e5">KEDA</text>
+    <text x="540" y="234" font-size="10.5" fill="#4f46e5">custom Go scaler</text>
+    <text x="540" y="247" font-size="10" fill="#64748b">queue + KV composite</text>
+
+    <!-- grafana -->
+    <rect x="636" y="92" width="120" height="46" rx="8" fill="#f1f5f9" stroke="#cbd5e1"/>
+    <text x="696" y="112" font-weight="600">Grafana</text>
+    <text x="696" y="128" font-size="10.5" fill="#64748b">dashboard + SLO alert</text>
+
+    <!-- scaledobject note -->
+    <rect x="300" y="200" width="150" height="52" rx="8" fill="#fffbeb" stroke="#fcd34d"/>
+    <text x="375" y="221" font-size="11" font-weight="600" fill="#92400e">ScaledObject</text>
+    <text x="375" y="236" font-size="10" fill="#92400e">waiting &gt; 3</text>
+    <text x="375" y="248" font-size="10" fill="#92400e">kv_cache &gt; 0.7</text>
+  </g>
+
+  <!-- arrows -->
+  <defs>
+    <marker id="ah" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#64748b"/>
+    </marker>
+    <marker id="ai" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#4f46e5"/>
+    </marker>
+  </defs>
+  <g stroke="#64748b" stroke-width="1.6" fill="none" marker-end="url(#ah)">
+    <line x1="120" y1="115" x2="152" y2="115"/>
+    <line x1="276" y1="115" x2="308" y2="115"/>
+    <line x1="444" y1="115" x2="476" y2="115"/>
+    <line x1="600" y1="115" x2="632" y2="115"/>
+    <line x1="540" y1="138" x2="540" y2="192"/>
+  </g>
+  <!-- KEDA scales the Service replicas (feedback) -->
+  <g stroke="#4f46e5" stroke-width="1.8" fill="none" marker-end="url(#ai)" stroke-dasharray="5 3">
+    <path d="M480,226 L216,226 L216,140"/>
+  </g>
+  <text x="330" y="288" font-size="10.5" fill="#4f46e5">KEDA scales replicas 1 → 5 on the composite saturation metric</text>
+</svg>

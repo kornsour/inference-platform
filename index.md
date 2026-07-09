@@ -1,6 +1,30 @@
-# AI Inference
+# Inference Platform
 
-This is a hands-on project on LLM inference serving: the platform layer that sits underneath generative AI models. It covers GPU scheduling, high-throughput serving engines, inference-aware autoscaling, and the observability and economics of running models at scale. I built it in two tracks. A literacy track covers the vocabulary and measured local serving, and a build track is an autoscaling inference platform on Kubernetes.
+An autoscaling **LLM inference platform on Kubernetes** that scales vLLM on
+inference-aware signals — request-queue depth and KV-cache utilization, not CPU —
+through a custom KEDA external scaler, validated on a DIY two-GPU cluster with real
+vLLM serving.
+
+![Architecture: autoscaling on inference-aware signals](docs/img/architecture.svg)
+
+## Highlights
+
+- **Autoscaling reacts to the right signal.** Under load, KEDA scaled the serving
+  Deployment **1 → 5 replicas** on queue depth; routing traffic through a load balancer
+  is what actually put the new replicas to work. → [capstone write-up](phase-2-capstone/WRITEUP.md)
+- **Real two-GPU vLLM.** Qwen2.5-1.5B sustains **~2,600 tok/s** (compute-bound); the 3B
+  model's smaller KV pool trips the KV-cache/queue trigger — the regime flip that
+  inference-aware scaling is built for. → [real-GPU results](phase-2-capstone/gpu-node/real-gpu-results.md)
+- **A custom Go KEDA external scaler** on a composite queue-depth + KV-cache saturation
+  metric, built and unit-tested in CI. → [the scaler](phase-2-capstone/keda-inference-scaler/README.md)
+
+![KEDA scale-out under load](docs/img/scale-out.svg)
+
+This began as self-directed, hands-on depth in LLM inference serving — the platform layer
+that sits underneath generative AI models: GPU scheduling, high-throughput serving
+engines, inference-aware autoscaling, and the observability and economics of running
+models at scale. It's organized in two tracks: a literacy track (vocabulary and measured
+local serving) and a build track (the autoscaling platform above).
 
 ## What is AI inference?
 

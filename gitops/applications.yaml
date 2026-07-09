@@ -17,7 +17,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/kornsour/ai-inference
+    repoURL: https://github.com/kornsour/inference-platform
     targetRevision: main
     path: phase-2-capstone/gpu-node
     directory:
@@ -42,7 +42,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/kornsour/ai-inference
+    repoURL: https://github.com/kornsour/inference-platform
     targetRevision: main
     path: phase-2-capstone/keda-inference-scaler/deploy
     directory:
