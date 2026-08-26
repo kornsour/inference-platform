@@ -84,6 +84,7 @@ Supporting docs:
 
 - [`docs/glossary.md`](docs/glossary.md) — inference serving vocabulary, the literacy target for Phase 1
 - [`docs/resources.md`](docs/resources.md) — curated books, papers, blogs, podcasts, and videos on LLM inference serving
+- [`docs/archive/`](docs/archive/) — historical/superseded documentation only. Nothing in that folder reflects the current state of the project or should be used to guide new work; see its `README.md` for details.
 
 ## Docs site
 
