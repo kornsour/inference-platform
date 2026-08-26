@@ -60,7 +60,7 @@ Run locally on a `kind` cluster (no GPU): driving ~3 req/s of 200-token requests
 
 When the loop works locally, swap the workload for the real thing, and the scaling stays identical:
 
-| Local (here) | GPU build ([`../k8s/`](../k8s/)) |
+| Local (here) | GPU build ([`../k8s/`](https://github.com/kornsour/inference-platform/tree/main/phase-2-capstone/k8s)) |
 | --- | --- |
 | `manifests/deployment.yaml` (mock) | `inferenceservice.yaml` (KServe + vLLM) |
 | `manifests/servicemonitor.yaml` | `podmonitor.yaml` |

@@ -2,7 +2,7 @@
 
 Declarative continuous delivery for the inference platform: git is the source of truth,
 and Argo CD reconciles the cluster to match. This is the **CD** half of the platform's
-GitOps and CI setup. The **CI** half ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml))
+GitOps and CI setup. The **CI** half ([`.github/workflows/ci.yml`](https://github.com/kornsour/inference-platform/blob/main/.github/workflows/ci.yml))
 lints, schema-validates, and builds every change before it merges.
 
 ## Applications
