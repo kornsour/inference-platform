@@ -20,7 +20,7 @@ is the **client** (`kubectl` / `helm`, GitOps/CI).
 
 > **k3s server is live (2026-06-23)** at `192.168.18.2`; the laptop agent has joined
 > and both nodes advertise a GPU. Specs/state captured 2026-06-23. Re-run
-> [Appendix A](#appendix-a--capturing-specs) after hardware/driver/OS changes.
+> [Appendix A](#appendix-a-capturing-specs) after hardware/driver/OS changes.
 
 ---
 
@@ -168,7 +168,7 @@ State as of capture: **WSL2 + Ubuntu and GPU passthrough are already done**
 6. **Hand the Mac a kubeconfig:** copy `/etc/rancher/k3s/k3s.yaml` from this PC to the
    Mac, replace `127.0.0.1` with `192.168.18.2`, and save as `~/.kube/config`. The Mac
    authenticates with this kubeconfig, **not** the node-token. See
-   [Credentials](../phase-2-capstone/gpu-node/diy-cluster.md#credentials--how-each-machine-authenticates).
+   [Credentials](../phase-2-capstone/gpu-node/diy-cluster.md#credentials-how-each-machine-authenticates).
 
 ---
 

@@ -54,7 +54,7 @@ firewall=true
 
 If you're on Windows 10 (no mirrored mode), this gets much harder (netsh
 portproxy + flannel quirks). At that point prefer the single-GPU
-[Option A](README.md#option-a--vllm-in-wsl2-cluster-points-at-it) instead.
+[external vLLM endpoint](README.md#faster-alternative-external-vllm-endpoint) instead.
 
 ## Per-machine setup
 
@@ -141,7 +141,7 @@ kubectl get nodes -o custom-columns=NODE:.metadata.name,GPU:'.status.allocatable
 ```
 
 The Mac uses this kubeconfig, **not** a node-token (see
-[Credentials](#credentials--how-each-machine-authenticates)). If `kubectl` fails TLS
+[Credentials](#credentials-how-each-machine-authenticates)). If `kubectl` fails TLS
 because the IP isn't in the cert, reinstall the server with `--tls-san 192.168.18.2`.
 
 ## Credentials — how each machine authenticates
@@ -182,7 +182,7 @@ Once both nodes show `nvidia.com/gpu: 1`, you have a real GPU cluster. Then:
 3. Apply [`../k8s/keda-scaledobject.yaml`](../k8s/keda-scaledobject.yaml) and
    [`../k8s/podmonitor.yaml`](../k8s/podmonitor.yaml), the **same** objects
    validated locally, now scaling **real vLLM across two GPUs**.
-4. Re-run the load + capture from [`../loadtest/`](../loadtest/) and drop the real
+4. Re-run the load + capture from [`../loadtest/`](https://github.com/kornsour/inference-platform/tree/main/phase-2-capstone/loadtest) and drop the real
    numbers into [`../WRITEUP.md`](../WRITEUP.md). This time scale-out is genuine
    GPU scale-out.
 

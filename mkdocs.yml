@@ -70,6 +70,15 @@ markdown_extensions:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
       emoji_generator: !!python/name:material.extensions.emoji.to_svg
 
+# `--strict` alone does not check that links resolve, which is how several
+# directory-style links shipped 404ing on Pages. With these set to `warn`,
+# `--strict` promotes them to build failures, so CI catches the next one.
+validation:
+  links:
+    absolute_links: warn
+    unrecognized_links: warn
+    anchors: warn
+
 nav:
   - Home: index.md
   - Glossary: docs/glossary.md
@@ -95,6 +104,7 @@ nav:
       - Custom KEDA scaler (Go): phase-2-capstone/keda-inference-scaler/README.md
       - GitOps & CI: gitops/README.md
       - Bootstrap (spin up / tear down): bootstrap/README.md
+      - Runbook (operate the cluster): phase-2-capstone/runbook.md
       - Write-up: phase-2-capstone/WRITEUP.md
 
 # README.md is excluded because index.md is the intended public homepage

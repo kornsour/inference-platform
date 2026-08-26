@@ -18,11 +18,11 @@
 - :material-progress-clock: **Envoy AI Gateway.** Automated in the bootstrap with route manifests written. Live bring-up is the one layer still pending, since it needs helm and is the most overlay-sensitive component.
 - :material-check: **Tech-stack rationale.** Every tool and language is justified with its purpose, trade-off, and benefit in [tech-stack.md](tech-stack.md).
 
-- [`local/`](local/) is the runnable local stack (mock vLLM plus KEDA plus Prometheus/Grafana), one command: `make up`
+- [`local/`](local/README.md) is the runnable local stack (mock vLLM plus KEDA plus Prometheus/Grafana), one command: `make up`
 - [`gpu-node/`](gpu-node/README.md) is the DIY two-GPU cluster (two 8 GB consumer GPUs as k3s GPU workers) serving real vLLM at $0, including the [runbook](gpu-node/diy-cluster.md)
 - [`gpu-node/real-gpu-results.md`](gpu-node/real-gpu-results.md) has the real-GPU serving numbers: 1.5B vs 3B and the two-GPU load-balanced scale-out
 - [`WRITEUP.md`](WRITEUP.md) is the portfolio write-up (local and real-GPU results)
-- [`loadtest/`](loadtest/) is the load and capture harness ([`gpu-loadtest.py`](loadtest/gpu-loadtest.py), `scale-demo.sh`, `incluster-load.yaml`)
+- [`loadtest/`](https://github.com/kornsour/inference-platform/tree/main/phase-2-capstone/loadtest) is the load and capture harness ([`gpu-loadtest.py`](loadtest/gpu-loadtest.py), `scale-demo.sh`, `incluster-load.yaml`)
 - [`runbook.md`](runbook.md) is the operational runbook (draft)
 
 ## Architecture
@@ -56,13 +56,13 @@
 - [x] **Autoscale with KEDA** driven by TTFT p95 or KV-cache utilization from Prometheus, not CPU. Validated locally from 1 to 5 replicas, now live on the GPU cluster as a ScaledObject autoscaling vLLM on queue-depth plus KV-cache (HPA reading `0/3, 0/700m`). See [`k8s/keda-scaledobject.yaml`](k8s/keda-scaledobject.yaml) and [`gpu-node/keda-scaledobject-gpu.yaml`](gpu-node/keda-scaledobject-gpu.yaml). This is the platform's core capability.
 - [ ] Add an **inference gateway** (Envoy AI Gateway) for token-aware rate limiting and model routing. Automated in the [bootstrap](../bootstrap/README.md) with route manifests written; live bring-up is pending because it needs helm and is the most overlay-sensitive layer.
 - [x] **Instrument everything.** Prometheus scrape plus Grafana dashboards for TTFT, inter-token latency, throughput, queue depth, and GPU utilization. One SLO defined and one alert wired. Done locally (dashboard plus TTFT-p95 SLO plus alerts), and now live on the DIY cluster with cross-node GPU and vLLM metrics in one Prometheus.
-- [x] **Load test** and capture saturation behavior. See [`loadtest/`](loadtest/). Captured locally, plus real-GPU load tests on the 2-GPU cluster ([real-gpu-results.md](gpu-node/real-gpu-results.md)).
+- [x] **Load test** and capture saturation behavior. See [`loadtest/`](https://github.com/kornsour/inference-platform/tree/main/phase-2-capstone/loadtest). Captured locally, plus real-GPU load tests on the 2-GPU cluster ([real-gpu-results.md](gpu-node/real-gpu-results.md)).
 
 ### Ship real code and treat it like a product platform
 
 - [x] Build at least one genuine code component in a named language: a **custom KEDA external scaler in Go** ([`keda-inference-scaler/`](keda-inference-scaler/README.md)) that scales on a composite KV-cache plus queue-depth signal, which is one trigger the built-in scaler cannot express, plus the [`gpu-loadtest.py`](loadtest/gpu-loadtest.py) harness. Not just YAML.
 - [ ] Land **one small PR to an OSS inference project** (vLLM / KServe / KEDA) and link it from the write-up. Submitted to KEDA in [external-scalers#34](https://github.com/kedacore/external-scalers/pull/34) (draft, DCO green), adding the [standalone scaler repo](https://github.com/kornsour/keda-inference-scaler) to the community list.
-- [x] **GitOps and CI.** GitHub Actions ([`ci.yml`](../.github/workflows/ci.yml)) lints and schema-validates every manifest and builds and tests the Go scaler. Argo CD `Application`s ([`gitops/`](../gitops/README.md)) declare the platform for continuous reconciliation. A Terraform/Helm IaC pass remains.
+- [x] **GitOps and CI.** GitHub Actions ([`ci.yml`](https://github.com/kornsour/inference-platform/blob/main/.github/workflows/ci.yml)) lints and schema-validates every manifest and builds and tests the Go scaler. Argo CD `Application`s ([`gitops/`](../gitops/README.md)) declare the platform for continuous reconciliation. A Terraform/Helm IaC pass remains.
 - [x] The stack is **CNCF end to end.** KServe, KEDA, Prometheus, and Argo CD are all CNCF projects (Argo CD, KEDA, and Prometheus are graduated).
 
 ### Reinforce alongside the build
@@ -83,4 +83,4 @@
 - **Shut instances down between sessions.** Idle GPUs are the fastest way to burn the budget, so I treat start/stop discipline as part of the platform's cost model.
 - For the control plane without GPU cost, prototype manifests on a local `kind`/`k3d` cluster, then move the workload to a GPU node pool.
 
-> The manifests in [`k8s/`](k8s/) are annotated starting points, not turnkey. Expect to adjust image tags, resource requests, model names, and metric names to match your engine version and cluster. Read the comments.
+> The manifests in [`k8s/`](https://github.com/kornsour/inference-platform/tree/main/phase-2-capstone/k8s) are annotated starting points, not turnkey. Expect to adjust image tags, resource requests, model names, and metric names to match your engine version and cluster. Read the comments.

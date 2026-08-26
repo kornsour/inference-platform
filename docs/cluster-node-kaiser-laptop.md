@@ -18,7 +18,7 @@ GitOps/CI). It runs no cluster workloads itself.
 > All Kubernetes nodes are **Linux** (WSL2 Ubuntu); the NVIDIA GPU is reached via
 > WSL2 GPU passthrough. You never run Kubernetes on Windows directly.
 
-> Specs/state captured 2026-06-23. Re-run [Appendix A](#appendix-a--re-capturing-specs)
+> Specs/state captured 2026-06-23. Re-run [Appendix A](#appendix-a-re-capturing-specs)
 > after hardware/driver/OS changes.
 
 ---
