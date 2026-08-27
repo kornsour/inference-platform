@@ -40,6 +40,10 @@ make image    # container image (protoc + build inside Docker)
 The gRPC stubs under `externalscaler/` are generated from `externalscaler.proto` (KEDA's
 external-scaler contract) via `make proto`, or automatically in the Dockerfile and CI.
 
+CI also runs [`check-sync.sh`](check-sync.sh), which diffs `main.go`, `main_test.go` and
+`Dockerfile` against the standalone repo and fails the build if this copy has drifted. Port
+any change to both repos (or run the script locally after a change here or there).
+
 ## Deploy
 
 `deploy/scaler.yaml` runs the scaler (Deployment + Service on `:6000`).
