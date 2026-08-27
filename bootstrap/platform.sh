@@ -33,6 +33,7 @@ KEDA_VER="${KEDA_VER:-v2.16.1}"
 
 REPO_ROOT="${REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 GPU="$REPO_ROOT/phase-2-capstone/gpu-node"
+SCALER="$REPO_ROOT/phase-2-capstone/keda-inference-scaler/deploy"
 ENVOY_DIR="$(dirname "${BASH_SOURCE[0]}")/envoy"
 PREREQS_DIR="$(dirname "${BASH_SOURCE[0]}")/prereqs"
 
@@ -73,7 +74,9 @@ netfix() { # WSL2 overlay workarounds (idempotent patches)
 serving()     { log "vLLM two-GPU serving + LB";  kctl apply -f "$GPU/vllm-2gpu.yaml"
                 log "Service, PodMonitor, SLO rule, Grafana dashboard"; kctl apply -f "$GPU/observability.yaml"
                 log "SLO/error-budget/cost PrometheusRule"; kctl apply -f "$GPU/slo-prometheusrule.yaml"; }
-autoscaling() { log "KEDA ScaledObject (queue + KV-cache)"; kctl apply -f "$GPU/keda-scaledobject-gpu.yaml"; }
+autoscaling() { log "custom Go external scaler (composite queue + KV-cache trigger)"
+                kctl apply -f "$SCALER/scaler.yaml"
+                kctl apply -f "$SCALER/scaledobject-external.yaml"; }
 
 gitops() {
   log "Argo CD"
@@ -91,7 +94,8 @@ down-gateway()     { "$ENVOY_DIR/install.sh" down || true; }
 down-gitops()      { kctl delete -f "$REPO_ROOT/gitops/applications.yaml" --ignore-not-found || true
                      kctl delete -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml --ignore-not-found || true
                      kctl delete namespace argocd --ignore-not-found || true; }
-down-autoscaling() { kctl delete -f "$GPU/keda-scaledobject-gpu.yaml" --ignore-not-found || true; }
+down-autoscaling() { kctl delete -f "$SCALER/scaledobject-external.yaml" --ignore-not-found || true
+                     kctl delete -f "$SCALER/scaler.yaml" --ignore-not-found || true; }
 down-serving()     { kctl delete -f "$GPU/slo-prometheusrule.yaml" --ignore-not-found || true
                      kctl delete -f "$GPU/observability.yaml" --ignore-not-found || true
                      kctl delete -f "$GPU/vllm-2gpu.yaml" --ignore-not-found || true; }

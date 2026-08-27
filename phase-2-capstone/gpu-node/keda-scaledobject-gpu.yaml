@@ -1,8 +1,14 @@
 # KEDA ScaledObject for the real GPU cluster — autoscales the vLLM Deployment on the
 # inference signal (queue depth + KV-cache utilization), NOT CPU. Uses KEDA's built-in
 # prometheus scaler (two triggers; KEDA scales on whichever is hotter), so it needs no
-# custom image. For the single-trigger composite version see the Go external scaler under
-# keda-inference-scaler/.
+# custom image.
+#
+# NOT the default scaling path — the custom Go external scaler under keda-inference-scaler/
+# (single composite trigger) is, since it's the stronger story. This is the built-in-scaler
+# alternative: kept for reference/rollback, excluded from bootstrap/platform.sh's
+# autoscaling() layer and from gitops/applications.yaml's include filter. Only one
+# ScaledObject may target a Deployment, so apply this OR
+# keda-inference-scaler/deploy/scaledobject-external.yaml, never both.
 #
 # serverAddress is the laptop NODE IP + hostNetwork Prometheus (:9090), not the ClusterIP:
 # cross-node ClusterIP routing is down under WSL2 mirrored mode (and NodePort is iptables-
