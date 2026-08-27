@@ -1,0 +1,77 @@
+# Vendored plain-manifest equivalent of the utkuozdemir/nvidia_gpu_exporter Helm chart
+# (pinned at chart app-version v1.14.0: https://github.com/utkuozdemir/nvidia_gpu_exporter),
+# committed here instead of an ad hoc `helm install` so the exporter is an applied
+# artifact like the rest of bootstrap/prereqs/ (see ../README.md).
+#
+# Why this exporter and not NVIDIA DCGM: DCGM has limited support on consumer GeForce
+# cards under WSL2 (some DCGM_FI_* fields come back empty — see
+# ../../phase-2-capstone/gpu-node/diy-cluster.md and
+# ../../phase-2-capstone/tech-stack.md). This exporter just parses `nvidia-smi`, which
+# works fine in WSL2, and exposes util / mem / temp / power on :9835/metrics.
+#
+# `hostNetwork: true` / `dnsPolicy: ClusterFirstWithHostNet` are baked in directly (not
+# patched on after the fact) because cross-node ClusterIP routing is down under this
+# cluster's WSL2 mirrored networking — see
+# ../../docs/cluster-troubleshooting-log.md (§7) and bootstrap/platform.sh's `netfix`
+# layer, which used to `kubectl patch` this in; vendoring makes that patch unnecessary.
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: nvidia-gpu-exporter
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: nvidia-gpu-exporter
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: nvidia-gpu-exporter
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: nvidia-gpu-exporter
+    spec:
+      runtimeClassName: nvidia
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+        - name: nvidia-gpu-exporter
+          image: docker.io/utkuozdemir/nvidia_gpu_exporter:1.14.0
+          env:
+            - name: NVIDIA_VISIBLE_DEVICES
+              value: "all"
+            - name: NVIDIA_DRIVER_CAPABILITIES
+              value: utility
+          args:
+            - --web.listen-address
+            - ":9835"
+            - --web.telemetry-path
+            - /metrics
+            - --nvidia-smi-command
+            - nvidia-smi
+            - --query-field-names
+            - AUTO
+          ports:
+            - name: http
+              containerPort: 9835
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: http
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi

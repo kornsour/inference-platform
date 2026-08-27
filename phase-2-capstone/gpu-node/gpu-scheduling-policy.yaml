@@ -1,0 +1,37 @@
+# Scheduling policy for GPU serving pods: a PriorityClass so vLLM preempts
+# lower-priority work for a GPU slot instead of queuing behind it, and a GPU-aware
+# ResourceQuota so a runaway Deployment/HPA/KEDA ScaledObject in the `inference`
+# namespace can't request more `nvidia.com/gpu` than the cluster actually has — cheap
+# insurance now that a card can advertise more than one schedulable GPU unit (see
+# ../../bootstrap/prereqs/nvidia-device-plugin-timeslicing.yaml).
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: gpu-serving
+  labels:
+    app.kubernetes.io/part-of: inference-platform
+value: 1000000        # above default (0), below cluster add-ons' system-node-critical
+globalDefault: false
+description: >-
+  GPU-serving workloads (vLLM). Pods at this priority preempt default-priority pods
+  for a GPU node/slot; used by phase-2-capstone/gpu-node/vllm-2gpu.yaml and
+  vllm-timeslice.yaml so a demo load-test job or other best-effort pod never starves
+  serving of a GPU it needs.
+---
+# GPU capacity in `inference` is 4 schedulable nvidia.com/gpu units: 2 physical GPUs x
+# the time-slicing ConfigMap's `replicas: 2`
+# (../../bootstrap/prereqs/nvidia-device-plugin-timeslicing.yaml). Lower `hard` to "2" if
+# running the plain (non-time-sliced) device plugin
+# (../../bootstrap/prereqs/nvidia-device-plugin.yaml) instead.
+#
+# Extended resources (like nvidia.com/gpu) can't be overcommitted, so Kubernetes only
+# accepts a `requests.` quota for them — no bare or `limits.` form. See
+# https://kubernetes.io/docs/concepts/policy/resource-quotas/#quota-for-extended-resources
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: inference-gpu-quota
+  namespace: inference
+spec:
+  hard:
+    requests.nvidia.com/gpu: "4"

@@ -65,6 +65,9 @@ netfix() { # WSL2 overlay workarounds (idempotent patches)
   log "overlay workarounds: hostNetwork Prometheus + GPU exporters, CoreDNS -> server"
   kctl patch prometheus kube-prometheus-stack-prometheus -n monitoring --type merge \
     -p '{"spec":{"hostNetwork":true}}' || true
+  # Defensive no-op against the vendored exporter (prereqs/nvidia-gpu-exporter.yaml,
+  # applied by the prereqs layer, bakes hostNetwork in already); kept so this
+  # self-heals if the exporter was ever installed some other way.
   kctl -n monitoring patch ds nvidia-gpu-exporter --type merge \
     -p '{"spec":{"template":{"spec":{"hostNetwork":true,"dnsPolicy":"ClusterFirstWithHostNet"}}}}' || true
   kctl delete pod -n kube-system -l k8s-app=kube-dns --wait=false || true

@@ -8,12 +8,14 @@ on:
     paths:
       - "phase-2-capstone/**"
       - "phase-1-foundations/**.py"
+      - "bootstrap/prereqs/**"
       - ".github/workflows/ci.yml"
       - ".yamllint.yaml"
   pull_request:
     paths:
       - "phase-2-capstone/**"
       - "phase-1-foundations/**.py"
+      - "bootstrap/prereqs/**"
       - ".github/workflows/ci.yml"
       - ".yamllint.yaml"
 
@@ -24,7 +26,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: yamllint
-        run: pipx run yamllint -c .yamllint.yaml phase-2-capstone
+        run: pipx run yamllint -c .yamllint.yaml phase-2-capstone bootstrap/prereqs
       - name: kubeconform (schema validation)
         run: |
           curl -sSL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz | tar xz kubeconform
@@ -37,12 +39,17 @@ jobs:
             phase-2-capstone/gpu-node/external-vllm.yaml \
             phase-2-capstone/gpu-node/vllm-plain.yaml \
             phase-2-capstone/gpu-node/vllm-2gpu.yaml \
+            phase-2-capstone/gpu-node/vllm-timeslice.yaml \
+            phase-2-capstone/gpu-node/gpu-scheduling-policy.yaml \
             phase-2-capstone/gpu-node/observability.yaml \
             phase-2-capstone/gpu-node/kserve-inferenceservice.yaml \
             phase-2-capstone/gpu-node/keda-scaledobject-gpu.yaml \
             phase-2-capstone/gpu-node/slo-prometheusrule.yaml \
             phase-2-capstone/keda-inference-scaler/deploy \
-            phase-2-capstone/loadtest/incluster-load.yaml
+            phase-2-capstone/loadtest/incluster-load.yaml \
+            bootstrap/prereqs/nvidia-device-plugin.yaml \
+            bootstrap/prereqs/nvidia-device-plugin-timeslicing.yaml \
+            bootstrap/prereqs/nvidia-gpu-exporter.yaml
 
   image:
     name: Lint & build mock image

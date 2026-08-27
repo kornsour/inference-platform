@@ -118,6 +118,49 @@ that gap explicitly is part of the point.
 
 ---
 
+## 5. GPU sharing: time-slicing vs MPS vs MIG
+
+Once a card can hold more than one replica, something has to arbitrate access to it.
+Three mechanisms exist; only one is available here.
+
+### MIG (Multi-Instance GPU) — **not available**
+
+MIG partitions a supported GPU into hardware-isolated instances, each with its own
+memory and compute slice — real isolation, a crashed workload in one instance can't
+touch another. It's an Ampere-and-later **datacenter** feature: `nvidia-smi mig -lgip`
+reports unsupported on both of this cluster's cards (RTX 3060 Ti, RTX 4070 Laptop —
+GeForce/RTX silicon, full stop). No driver version changes that. Ruled out before any
+tuning could matter.
+
+### MPS (Multi-Process Service)
+
+Space-partitions memory and compute per client and enforces the limits, closer to
+MIG's isolation without the hardware requirement. Needs a control daemon running on
+the host and is mutually exclusive with time-slicing in the device plugin's config.
+Viable on GeForce, but adds an operational component (the daemon, its lifecycle) this
+homelab doesn't otherwise need.
+
+### CUDA time-slicing (**chosen**)
+
+Interleaves compute access to a GPU across replicas with no isolation — one workload
+crashing or hogging the card affects everyone sharing it. The trade for that is
+simplicity: it's a device-plugin config change
+([`nvidia-device-plugin-timeslicing.yaml`](../bootstrap/prereqs/nvidia-device-plugin-timeslicing.yaml)),
+no extra daemon, no requirement beyond what the plain device plugin already needs. For
+a demo whose point is "does the scheduler let two replicas share this card," the lack
+of isolation is an acceptable trade against MPS's extra moving part, especially since
+each replica's blast radius (a wedged vLLM process) is already something the
+`readinessProbe` and KEDA's health signals are built to catch.
+
+**Decision:** time-slicing, applied optionally alongside the plain (one-`nvidia.com/gpu`-
+per-card) device plugin — see
+[diy-cluster.md § Sharing a GPU across replicas](gpu-node/diy-cluster.md#sharing-a-gpu-across-replicas-time-slicing)
+and [`vllm-timeslice.yaml`](gpu-node/vllm-timeslice.yaml). On hardware with MIG-capable
+cards, MIG's isolation would be the better default; time-slicing is the applicable
+answer specifically because this fleet is consumer GeForce.
+
+---
+
 ## Summary
 
 | Decision | Chosen | Alternative | Why |
@@ -126,6 +169,7 @@ that gap explicitly is part of the point.
 | KServe mode | RawDeployment | Serverless (Knative+Istio) | Serverless mesh depends on the broken overlay and is far heavier |
 | Traffic plane | External nginx LB | ClusterIP Service | Cross-node Service routing rides the broken overlay |
 | Substrate | `hostNetwork` and host DNS workarounds | Healthy CNI overlay | WSL2 mirrored mode won't carry kernel VXLAN |
+| GPU sharing | CUDA time-slicing | MIG (datacenter-only, unavailable) / MPS (needs a control daemon) | Simplest mechanism GeForce hardware actually supports |
 
 The honest through-line: on a constrained cluster, the simplest thing that works beats the
 most capable thing that doesn't. Plain Deployment shipped real numbers immediately. KServe

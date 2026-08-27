@@ -192,3 +192,28 @@ and none of them exist with the plain Deployment:
     friction (the table above). The plain Deployment shipped the same numbers with a
     fraction of the moving parts. Pick KServe for the **platform** (fleet of models,
     lifecycle, canary), not for a single model's throughput.
+
+---
+
+## GPU time-slicing: shared-card scheduling (manifests ready, run pending)
+
+The scheduling side of a shared 8 GB card is committed and validated by schema
+(kubeconform, CI): [`../../bootstrap/prereqs/nvidia-device-plugin-timeslicing.yaml`](../../bootstrap/prereqs/nvidia-device-plugin-timeslicing.yaml)
+advertises 2 schedulable `nvidia.com/gpu` units per physical card, and
+[`vllm-timeslice.yaml`](vllm-timeslice.yaml) schedules two vLLM replicas onto one node
+to consume them — see [diy-cluster.md § Sharing a GPU across
+replicas](diy-cluster.md#sharing-a-gpu-across-replicas-time-slicing) for the full
+rundown and the MIG-vs-time-slicing reasoning.
+
+**Deliberately not included here:** throughput/TTFT numbers for the shared-card case.
+Every other number on this page came from an actual run on this cluster's hardware
+(see Method, above); a shared-card run needs the same treatment — apply the
+time-slicing device plugin, apply `vllm-timeslice.yaml`, drive
+[`../loadtest/gpu-loadtest.py`](../loadtest/gpu-loadtest.py) against both replicas
+concurrently (`kubectl port-forward` each pod to a separate local port), and append
+the results here the same way Runs 1 and 2 above were captured. The expected shape,
+based on the single-replica numbers above: two 1.5B replicas time-slicing one card
+should land somewhere between "two independent 1.5B runs" (if the workloads interleave
+cleanly) and "one 1.5B run's throughput split two ways" (if they contend hard) —
+CUDA time-slicing has no memory or scheduling isolation, so the actual number is worth
+seeing, not assuming.

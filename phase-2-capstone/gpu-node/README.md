@@ -16,6 +16,7 @@ cluster, serve real vLLM and demonstrate multi-replica GPU scale-out for
 | Real TTFT / throughput / cost-per-token numbers for the write-up | :material-check: [done](real-gpu-results.md) |
 | Validate the SAME metrics/ScaledObject against real vLLM | :material-check: metrics flowing; KEDA-on-GPU next |
 | Multi-replica **GPU** scale-out (one replica per card, load-balanced) | :material-check: [done](real-gpu-results.md) |
+| GPU **scheduling**: vendored device plugin, time-slicing, shared-card | :material-check: [manifests + schema-validated](diy-cluster.md#sharing-a-gpu-across-replicas-time-slicing); shared-card run numbers [pending](real-gpu-results.md#gpu-time-slicing-shared-card-scheduling-manifests-ready-run-pending) |
 
 The control loop was first proven $0 on a metrics-faithful mock
 ([local validation](../local/README.md)). The two-GPU cluster then characterized the
