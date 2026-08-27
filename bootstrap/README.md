@@ -19,22 +19,38 @@ Per-layer targets let you bring up / tear down one piece: `make serving`, `make 
 
 | Layer | What | Why the order |
 |---|---|---|
+| `prereqs` | NVIDIA device plugin + `nvidia-gpu-exporter` DaemonSet | must exist before `netfix` has anything to patch or `serving` has a GPU to request |
 | `platform` | cert-manager → KEDA → KServe | controllers + webhooks; the **agent is cordoned** first so they land on the API-server node |
 | `netfix` | hostNetwork Prometheus + GPU exporters; CoreDNS → server | the overlay workarounds that make metrics + DNS reachable |
-| `serving` | vLLM (two-GPU) + nginx LB | the workload |
-| `autoscaling` | KEDA `ScaledObject` (queue + KV-cache) | needs Prometheus reachable (netfix) |
+| `serving` | vLLM (two-GPU) + nginx LB + `Service`/`PodMonitor`/SLO `PrometheusRule`/Grafana dashboard | the workload and everything that scrapes, alerts on, and dashboards it |
+| `autoscaling` | KEDA `ScaledObject` (queue + KV-cache) | needs Prometheus reachable (netfix) and the PodMonitor scraping (serving) |
 | `gitops` | Argo CD + `Application`s | declarative CD for the above |
-| `gateway` | Envoy AI Gateway | token-aware front door |
+| `gateway` | Envoy AI Gateway | needs `Service/vllm-qwen` (serving) to route to |
 
 `down` runs the reverse, and finally **uncordons** the agent.
 
 ## Prerequisites
 
-- A running **k3s** cluster (server + GPU agent) with the NVIDIA device plugin (see the
-  [cluster runbook](../phase-2-capstone/gpu-node/diy-cluster.md)).
-- **kube-prometheus-stack** installed in `monitoring` (the `netfix` layer patches it).
-- **helm** on PATH for the `gateway` layer.
+What genuinely can't be scripted from here — needs real hardware or a one-time
+manual step — versus what the `prereqs` layer now vendors for you:
+
+- A running **k3s** cluster (server + GPU agent) with the **NVIDIA Container
+  Toolkit** installed on each GPU node *before* k3s starts, so k3s auto-detects it
+  and creates the `nvidia` `RuntimeClass` (see the
+  [cluster runbook](../phase-2-capstone/gpu-node/diy-cluster.md) — this is also where
+  the "do not run `nvidia-ctk runtime configure` against k3s" warning lives).
+- **kube-prometheus-stack** installed in `monitoring` (the `netfix` layer patches it;
+  see [`local/Makefile`](../phase-2-capstone/local/Makefile)'s `monitoring` target for
+  the Helm install this repo uses elsewhere).
+- **helm** on PATH for the `prereqs` and `gateway` layers.
 - `kubectl` pointed at the cluster (`KUBECTL="k3s kubectl"` on the server).
+
+The `prereqs` layer itself installs the **NVIDIA device plugin** (advertises
+`nvidia.com/gpu`) and the **`nvidia-gpu-exporter`** DaemonSet (GPU util/mem/temp/power
+on `:9835`, the `netfix` layer's hostNetwork patch target) — see
+[`prereqs/install.sh`](prereqs/install.sh). Neither ships with k3s or
+kube-prometheus-stack, so before this layer existed `make up` on a fresh cluster left
+`netfix`'s exporter patch as a no-op against a DaemonSet nothing had created.
 
 ## Why these workarounds exist
 
@@ -53,4 +69,5 @@ Override any of these via environment (defaults shown):
 KUBECTL=kubectl  AGENT_NODE=kaiser-laptop  AGENT_IP=192.168.18.142
 PROM_ADDR=http://192.168.18.142:9090
 CERT_MANAGER_VER=v1.16.2  KSERVE_VER=v0.14.1  KEDA_VER=v2.16.1
+DEVICE_PLUGIN_VER=v0.16.2  GPU_EXPORTER_VER=<chart's latest>   # prereqs layer
 ```
