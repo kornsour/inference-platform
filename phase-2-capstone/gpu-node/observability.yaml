@@ -1,0 +1,181 @@
+# Observability for the two-GPU serving path: the Service + PodMonitor that let
+# Prometheus (and the AI Gateway's AIServiceBackend) find vllm-qwen, plus the same
+# SLO PrometheusRule and Grafana dashboard the local kind stack applies imperatively
+# via `local/Makefile`'s `dashboard` target. Declaring them here means `bootstrap
+# serving` (and the `inference-serving` Argo Application) stand these up too, so the
+# GPU path doesn't depend on ever having run the local stack first.
+#
+# vllm-2gpu.yaml's pods are hostNetwork (see the comment there on why), so this
+# Service's Endpoints resolve to node IPs on real userspace sockets — plain LAN TCP,
+# not the broken pod overlay — which is also what lets the AIServiceBackend in
+# bootstrap/envoy/ai-gateway.yaml route through it across nodes.
+apiVersion: v1
+kind: Service
+metadata:
+  name: vllm-qwen
+  namespace: inference
+  labels:
+    app: vllm-qwen
+spec:
+  selector:
+    app: vllm-qwen
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: vllm-qwen
+  namespace: inference
+  labels:
+    release: kube-prometheus-stack        # match the Prometheus podMonitorSelector
+spec:
+  selector:
+    matchLabels:
+      app: vllm-qwen
+  podMetricsEndpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+---
+# The SLO/error-budget/cost PrometheusRule (same "inference-slo" resource
+# name) is defined once, in slo-prometheusrule.yaml — not here. It's a
+# superset of what used to live in this file (adds error-budget and cost
+# burn-rate groups on top of the same SLI/SLO rules), and two PrometheusRule
+# manifests sharing one name+namespace don't merge on apply — whichever one
+# is applied second silently replaces the other's groups, not adds to them.
+# bootstrap/platform.sh's serving() applies this file, then
+# slo-prometheusrule.yaml, so that one wins and stays the single source.
+# Same dashboard as phase-2-capstone/local/grafana/inference-dashboard.json, applied
+# declaratively (the local stack loads it imperatively via `make dashboard`) and with
+# the "Replicas" panel pointed at the real Deployment name (vllm-qwen, not mock-vllm).
+# The `grafana_dashboard: "1"` label is what the kube-prometheus-stack Grafana sidecar
+# watches for.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: inference-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  inference-dashboard.json: |
+    {
+      "title": "LLM Inference Platform",
+      "uid": "llm-inference",
+      "tags": ["inference", "vllm", "kserve"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "refresh": "10s",
+      "time": { "from": "now-15m", "to": "now" },
+      "templating": {
+        "list": [
+          {
+            "name": "datasource",
+            "type": "datasource",
+            "query": "prometheus",
+            "current": {},
+            "hide": 0
+          }
+        ]
+      },
+      "panels": [
+        {
+          "id": 1,
+          "title": "TTFT (p50 / p95) vs SLO",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "red", "value": 1 }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "table", "calcs": ["last", "max"] } },
+          "targets": [
+            { "refId": "A", "expr": "job:vllm_ttft_p50_seconds:5m", "legendFormat": "TTFT p50" },
+            { "refId": "B", "expr": "job:vllm_ttft_p95_seconds:5m", "legendFormat": "TTFT p95" }
+          ]
+        },
+        {
+          "id": 2,
+          "title": "Inter-token latency (p95)",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+          "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+          "targets": [
+            { "refId": "A", "expr": "histogram_quantile(0.95, sum(rate(vllm:time_per_output_token_seconds_bucket[5m])) by (le))", "legendFormat": "ITL p95" }
+          ]
+        },
+        {
+          "id": 3,
+          "title": "Throughput (generated tokens/sec)",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+          "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] },
+          "targets": [
+            { "refId": "A", "expr": "job:vllm_tokens_per_second:1m", "legendFormat": "tokens/s" }
+          ]
+        },
+        {
+          "id": 4,
+          "title": "Queue depth (requests waiting)",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 3 } ] }
+            },
+            "overrides": []
+          },
+          "targets": [
+            { "refId": "A", "expr": "sum(vllm:num_requests_waiting)", "legendFormat": "waiting" },
+            { "refId": "B", "expr": "sum(vllm:num_requests_running)", "legendFormat": "running" }
+          ]
+        },
+        {
+          "id": 5,
+          "title": "KV-cache utilization vs scale threshold",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "max": 1,
+              "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 0.7 } ] }
+            },
+            "overrides": []
+          },
+          "targets": [
+            { "refId": "A", "expr": "max(vllm:gpu_cache_usage_perc)", "legendFormat": "KV-cache util (max)" }
+          ]
+        },
+        {
+          "id": 6,
+          "title": "Replicas (KEDA autoscaling)",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+          "fieldConfig": { "defaults": { "unit": "short", "min": 0 }, "overrides": [] },
+          "options": { "legend": { "displayMode": "list" } },
+          "targets": [
+            { "refId": "A", "expr": "sum(kube_deployment_status_replicas{namespace=\"inference\", deployment=\"vllm-qwen\"})", "legendFormat": "replicas" }
+          ]
+        }
+      ]
+    }

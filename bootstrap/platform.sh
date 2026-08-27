@@ -14,8 +14,8 @@
 #   ./platform.sh up                 # bring up the whole stack
 #   ./platform.sh down               # tear it all down (reverse order)
 #   ./platform.sh status             # what's running
-#   ./platform.sh <layer>            # run a single layer: platform|netfix|serving|
-#                                    #   autoscaling|gitops|gateway
+#   ./platform.sh <layer>            # run a single layer: prereqs|platform|netfix|
+#                                    #   serving|autoscaling|gitops|gateway
 #   ./platform.sh down-<layer>       # tear down a single layer
 #
 # Runs wherever kubectl targets the cluster. On the k3s server, export:
@@ -34,6 +34,7 @@ KEDA_VER="${KEDA_VER:-v2.16.1}"
 REPO_ROOT="${REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 GPU="$REPO_ROOT/phase-2-capstone/gpu-node"
 ENVOY_DIR="$(dirname "${BASH_SOURCE[0]}")/envoy"
+PREREQS_DIR="$(dirname "${BASH_SOURCE[0]}")/prereqs"
 
 kctl() { $KUBECTL "$@"; }
 log()  { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
@@ -42,6 +43,8 @@ cordon()   { log "cordon $AGENT_NODE (webhooks must reach the API server)"; kctl
 uncordon() { log "uncordon $AGENT_NODE"; kctl uncordon "$AGENT_NODE" || true; }
 
 # ---------------------------------------------------------------------------- layers
+
+prereqs() { log "GPU prereqs (device plugin + exporter)"; "$PREREQS_DIR/install.sh" up; }
 
 platform() { # cert-manager + KEDA + KServe (all webhook-backed -> cordon first)
   cordon
@@ -68,6 +71,7 @@ netfix() { # WSL2 overlay workarounds (idempotent patches)
 }
 
 serving()     { log "vLLM two-GPU serving + LB";  kctl apply -f "$GPU/vllm-2gpu.yaml"
+                log "Service, PodMonitor, SLO rule, Grafana dashboard"; kctl apply -f "$GPU/observability.yaml"
                 log "SLO/error-budget/cost PrometheusRule"; kctl apply -f "$GPU/slo-prometheusrule.yaml"; }
 autoscaling() { log "KEDA ScaledObject (queue + KV-cache)"; kctl apply -f "$GPU/keda-scaledobject-gpu.yaml"; }
 
@@ -89,17 +93,19 @@ down-gitops()      { kctl delete -f "$REPO_ROOT/gitops/applications.yaml" --igno
                      kctl delete namespace argocd --ignore-not-found || true; }
 down-autoscaling() { kctl delete -f "$GPU/keda-scaledobject-gpu.yaml" --ignore-not-found || true; }
 down-serving()     { kctl delete -f "$GPU/slo-prometheusrule.yaml" --ignore-not-found || true
+                     kctl delete -f "$GPU/observability.yaml" --ignore-not-found || true
                      kctl delete -f "$GPU/vllm-2gpu.yaml" --ignore-not-found || true; }
 down-platform()    {
   kctl delete --ignore-not-found -f "https://github.com/kserve/kserve/releases/download/$KSERVE_VER/kserve.yaml" || true
   kctl delete --ignore-not-found -f "https://github.com/kedacore/keda/releases/download/$KEDA_VER/keda-$KEDA_VER.yaml" || true
   kctl delete --ignore-not-found -f "https://github.com/cert-manager/cert-manager/releases/download/$CERT_MANAGER_VER/cert-manager.yaml" || true
 }
+down-prereqs()     { "$PREREQS_DIR/install.sh" down || true; }
 
 # ---------------------------------------------------------------------------- compose
 
-up()   { platform; netfix; serving; autoscaling; gitops; gateway; uncordon; log "UP complete"; status; }
-down() { down-gateway; down-gitops; down-autoscaling; down-serving; down-platform; uncordon; log "DOWN complete"; }
+up()   { prereqs; platform; netfix; serving; autoscaling; gitops; gateway; uncordon; log "UP complete"; status; }
+down() { down-gateway; down-gitops; down-autoscaling; down-serving; down-platform; down-prereqs; uncordon; log "DOWN complete"; }
 
 status() {
   log "nodes";        kctl get nodes
