@@ -4,8 +4,10 @@
 > plane is validated end to end on a local cluster, and real-GPU serving numbers
 > are captured on the DIY two-GPU cluster (Qwen2.5-1.5B and 3B on real vLLM), see
 > [`gpu-node/real-gpu-results.md`](gpu-node/real-gpu-results.md). The two-GPU
-> load-balanced scale-out run and the KServe comparison are done. The one layer
-> still pending live bring-up is the Envoy AI Gateway.
+> load-balanced scale-out run and the KServe comparison are done. The layers still
+> pending live bring-up: the Envoy AI Gateway, and the pollingInterval-regime charts
+> in [Signal staleness](#signal-staleness-in-the-autoscaling-control-loop) (the
+> methodology and derivation are done; the captured regime runs are not).
 
 ## TL;DR
 
@@ -93,6 +95,49 @@ inference gateway: scaling is worthless if the front door doesn't spread load.
 offered, the queue never fully drained, since the platform was simply under-
 provisioned for that load. The levers are to raise `maxReplicas`, raise per-replica
 concurrency (KV-cache headroom or quantization), or shed and queue with backpressure.
+
+## Signal staleness in the autoscaling control loop
+
+Scaling out correctly on the queue-depth signal (above) doesn't mean scaling out
+*promptly*. The replica count at any instant reflects saturation as it was some tens of
+seconds ago, not right now — vLLM's gauges, Prometheus's scrape interval, KEDA's
+`pollingInterval`, the external scaler's own `StreamIsActive` ticker, and the HPA's
+scale-down stabilization window are five independently-clocked layers, none of which know
+about each other. That's a real, previously-undocumented consistency property of this
+control loop, not a bug — and two of the four `ScaledObject`s in this repo were, before this
+change, configured with `pollingInterval == scrape_interval`, which is exactly the resonance
+condition that risks the scaler repeatedly acting on the same Prometheus sample rather than
+a fresh one each poll.
+
+![Worst-case scaling-decision signal age, per ScaledObject](../docs/img/signal-staleness.svg)
+
+**Worst-case signal age is additive:** `scrape_interval + pollingInterval`. Working through
+the actual configured values landed the four `ScaledObject`s between 30s and 45s worst-case
+— down from as much as 40s on an *undocumented default* for the local/mock path, since
+`pollingInterval` used to fall back to KEDA's own 30s default rather than being a stated,
+reasoned choice.
+
+The external scaler ([`keda-inference-scaler/README.md`](keda-inference-scaler/README.md))
+now threads the *Prometheus sample's own timestamp* — not the time the query ran — through
+every reading it takes, exposing `scaler_signal_age_seconds{namespace,scaledobject,dimension}`
+(scraped by a new ServiceMonitor) and logging `queueSignalAgeSeconds`/`kvSignalAgeSeconds`
+alongside every `IsActive`/`GetMetrics` decision — so this is now something you can chart
+from the scaler's own decisions, not just infer from the configured intervals.
+`pollingInterval`, `streamPollInterval`, and the scale-down stabilization window across all
+four `ScaledObject`s now follow a derived relationship (roughly: poll at ~2x the scrape
+interval, never equal to it; stabilize for at least 2x the worst-case signal age) rather than
+ad hoc or default values.
+
+Full derivation, the per-file before/after table, the oscillation and cold-start-interaction
+findings, and the reproduction methodology (a step-function load against the mock at three
+`pollingInterval` regimes — well below/equal to/well above the scrape interval) are in
+[`docs/autoscaling-signal-staleness.md`](../docs/autoscaling-signal-staleness.md). The
+regime charts themselves are not included in this change — reproducing them needs a second
+full local cluster stack, and the shared Docker host this was built on was already visibly
+resource-constrained (concurrent containers stuck in `Created` rather than running) at the
+time; the script to run them (
+[`loadtest/staleness-demo.sh`](loadtest/staleness-demo.sh)) is ready, and the doc explains
+why fabricating that data instead wasn't the right call.
 
 ## Real-GPU serving numbers
 

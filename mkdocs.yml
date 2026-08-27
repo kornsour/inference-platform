@@ -102,6 +102,7 @@ nav:
       - Architecture decisions & trade-offs: phase-2-capstone/architecture-decisions.md
       - Tech stack & trade-offs: phase-2-capstone/tech-stack.md
       - Custom KEDA scaler (Go): phase-2-capstone/keda-inference-scaler/README.md
+      - Autoscaling signal staleness: docs/autoscaling-signal-staleness.md
       - GitOps & CI: gitops/README.md
       - Bootstrap (spin up / tear down): bootstrap/README.md
       - Runbook (operate the cluster): phase-2-capstone/runbook.md

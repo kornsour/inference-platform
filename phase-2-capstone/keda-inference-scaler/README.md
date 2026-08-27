@@ -62,6 +62,21 @@ kubectl apply -f deploy/scaledobject-external.yaml
 kubectl get scaledobject,hpa -n inference
 ```
 
+## Observability
+
+`/metrics` (on the HTTP port, `:8080` by default) exposes, alongside query latency/error
+counts and the composite saturation score:
+
+| metric | meaning |
+|---|---|
+| `scaler_signal_age_seconds{namespace,scaledobject,dimension}` | age of the Prometheus sample behind the last `queue`/`kv` reading, at the moment the decision was made -- how stale the input to that decision already was |
+
+Every `IsActive`/`GetMetrics`/`StreamIsActive` decision also logs `queueSignalAgeSeconds`
+and `kvSignalAgeSeconds`. This is the control loop's observed staleness -- how it differs
+from what the configured `pollingInterval`/scrape interval alone would suggest, and why, is
+covered in
+[`docs/autoscaling-signal-staleness.md`](../../docs/autoscaling-signal-staleness.md).
+
 ## Configuration (ScaledObject `trigger.metadata`)
 
 | key | default | meaning |
