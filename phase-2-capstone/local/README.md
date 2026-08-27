@@ -56,6 +56,10 @@ Suggested demo: start at 1 replica, ramp locust to ~20 users, and watch `make wa
 
 Run locally on a `kind` cluster (no GPU): driving ~3 req/s of 200-token requests past one replica's capacity, the queue-depth signal rose well above threshold and **KEDA scaled the deployment 1 → 5 replicas** (HPA event: `SuccessfulRescale … reason: external metric … above target`). TTFT p95 blew past the 1s SLO under saturation (firing `InferenceTTFTSLOBreach`), then recovered as replicas absorbed the load. The Grafana dashboard auto-imports via the kube-prometheus-stack sidecar.
 
+Raw output from one such run — `scale-demo.sh` stdout, the `SuccessfulRescale`
+event, and `describe hpa` at peak, with date, cluster, and command line — is
+committed under [`runs/2026-08-27-scale-out/`](runs/2026-08-27-scale-out/README.md).
+
 ## Moving to GPU
 
 When the loop works locally, swap the workload for the real thing, and the scaling stays identical:
