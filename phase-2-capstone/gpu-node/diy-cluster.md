@@ -116,18 +116,76 @@ curl -sfL https://get.k3s.io | K3S_URL=https://192.168.18.2:6443 \
 
 Because the toolkit was installed *before* k3s started, the `nvidia` runtime is
 already present (`kubectl get runtimeclass` should list `nvidia`). Install the device
-plugin **once from the server** and pin it to that runtime class; the DaemonSet is
-cluster-wide, so it covers every node that joins (no per-node re-apply):
+plugin **once from the server**, pinned to that runtime class; the DaemonSet is
+cluster-wide, so it covers every node that joins (no per-node re-apply).
+[`bootstrap/prereqs/install.sh`](../../bootstrap/prereqs/install.sh) (`make -C
+bootstrap prereqs`) does this for you — device plugin + GPU exporter in one step — from
+manifests vendored in
+[`bootstrap/prereqs/`](../../bootstrap/prereqs/README.md): committed, pinned copies instead of
+`kubectl apply -f <upstream-url>` / a live `helm install`, with `runtimeClassName:
+nvidia` already baked in so no separate patch step is needed. Equivalent by hand:
 
 ```bash
-kubectl apply -f https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/v0.16.2/deployments/static/nvidia-device-plugin.yml
-kubectl -n kube-system patch daemonset nvidia-device-plugin-daemonset \
-  --type merge -p '{"spec":{"template":{"spec":{"runtimeClassName":"nvidia"}}}}'
+kubectl apply -f ../../bootstrap/prereqs/nvidia-device-plugin.yaml
+kubectl apply -f ../../bootstrap/prereqs/nvidia-gpu-exporter.yaml
 ```
+
+The plain device plugin (what `install.sh` applies by default) advertises one
+`nvidia.com/gpu` per physical card — what [`vllm-2gpu.yaml`](vllm-2gpu.yaml) schedules
+against, one replica per card. To advertise more schedulable units per card via GPU
+**time-slicing** instead — see
+[Sharing a GPU across replicas](#sharing-a-gpu-across-replicas-time-slicing) below — set
+`GPU_TIME_SLICING=1` before running `install.sh`, or by hand:
+
+```bash
+kubectl apply -f ../../bootstrap/prereqs/nvidia-device-plugin-timeslicing.yaml
+```
+
+instead of the plain manifest (the two are mutually exclusive; same DaemonSet
+name/namespace, so applying one replaces the other). See
+[`bootstrap/prereqs/README.md`](../../bootstrap/prereqs/README.md) for the full
+rundown of what's vendored and why.
 
 > If a node installs the toolkit *after* k3s is already running, restart k3s there so
 > it re-detects the runtime: `sudo systemctl restart k3s` (server) or
 > `sudo systemctl restart k3s-agent` (agent).
+
+### Sharing a GPU across replicas (time-slicing)
+
+**MIG is not an option here.** MIG (Multi-Instance GPU) partitions a card into
+hardware-isolated slices, but it's an Ampere-and-later **datacenter** feature (A100,
+H100, ...) — `nvidia-smi mig -lgip` reports unsupported on GeForce/RTX cards, full stop,
+no driver update changes that. Neither of this cluster's cards (RTX 3060 Ti, RTX 4070
+Laptop) can do it. The applicable mechanism on consumer GeForce hardware is CUDA
+**time-slicing** (interleaved compute access, no memory/fault isolation between the
+pods sharing a card) or **MPS** (space-partitioned, needs a control daemon; mutually
+exclusive with time-slicing). This cluster uses time-slicing — no extra daemon, no
+driver requirement beyond what's already installed.
+
+With
+[`nvidia-device-plugin-timeslicing.yaml`](../../bootstrap/prereqs/nvidia-device-plugin-timeslicing.yaml)
+applied, each 8 GB card advertises **2** schedulable `nvidia.com/gpu` units instead of
+1:
+
+```bash
+kubectl get nodes -o custom-columns=NODE:.metadata.name,GPU:'.status.allocatable.nvidia\.com/gpu'
+# each GPU node should now report 2
+```
+
+[`vllm-timeslice.yaml`](vllm-timeslice.yaml) demonstrates it: two vLLM replicas
+scheduled onto the **same** node (unlike `vllm-2gpu.yaml`'s one-per-host
+`podAntiAffinity`), each holding a distinct time-sliced GPU unit, each sized to fit
+half the card (`--gpu-memory-utilization=0.35`, `--enforce-eager`). This is also what
+makes `maxReplicaCount: 2` in
+[`keda-scaledobject-gpu.yaml`](keda-scaledobject-gpu.yaml) meaningful as "2 replicas
+sharing this card" rather than only "1 replica per card, 2 cards total."
+[`gpu-scheduling-policy.yaml`](gpu-scheduling-policy.yaml) adds a `PriorityClass` for
+serving pods and a GPU-aware `ResourceQuota` on the `inference` namespace so nothing can
+request more `nvidia.com/gpu` than the cluster (now time-sliced) actually has.
+
+Time-slicing has no isolation: a crashed or runaway replica can degrade or take down
+the other sharing its card, unlike MIG's hardware partitions. Fine for a demo; size and
+monitor accordingly in anything closer to production.
 
 ### Mac — point kubectl at the cluster
 
@@ -249,7 +307,11 @@ kubectl -n monitoring port-forward svc/<grafana-svc> 3000:80   # http://localhos
 > WSL2, so some `DCGM_FI_*` fields may come back empty. If so, use
 > [`nvidia_gpu_exporter`](https://github.com/utkuozdemir/nvidia_gpu_exporter) instead;
 > it just parses `nvidia-smi` (which works fine in WSL) and exposes util / mem / temp /
-> power on `:9835/metrics`. Scrape it with a `PodMonitor` the same way.
+> power on `:9835/metrics`. This is what the DIY cluster actually runs — vendored as
+> [`../../bootstrap/prereqs/nvidia-gpu-exporter.yaml`](../../bootstrap/prereqs/nvidia-gpu-exporter.yaml)
+> instead of a `helm install`, `hostNetwork` baked in per the fix in
+> [the troubleshooting log](../../docs/cluster-troubleshooting-log.md): `kubectl apply
+> -f ../../bootstrap/prereqs/nvidia-gpu-exporter.yaml`.
 
 These GPU signals sit alongside the inference metrics (TTFT, KV-cache %, queue depth)
 the capstone already scrapes from vLLM. Together they're what the autoscaling and the

@@ -42,15 +42,21 @@ manual step — versus what the `prereqs` layer now vendors for you:
 - **kube-prometheus-stack** installed in `monitoring` (the `netfix` layer patches it;
   see [`local/Makefile`](../phase-2-capstone/local/Makefile)'s `monitoring` target for
   the Helm install this repo uses elsewhere).
-- **helm** on PATH for the `prereqs` and `gateway` layers.
+- **helm** on PATH for the `gateway` layer.
 - `kubectl` pointed at the cluster (`KUBECTL="k3s kubectl"` on the server).
 
 The `prereqs` layer itself installs the **NVIDIA device plugin** (advertises
 `nvidia.com/gpu`) and the **`nvidia-gpu-exporter`** DaemonSet (GPU util/mem/temp/power
-on `:9835`, the `netfix` layer's hostNetwork patch target) — see
-[`prereqs/install.sh`](prereqs/install.sh). Neither ships with k3s or
-kube-prometheus-stack, so before this layer existed `make up` on a fresh cluster left
-`netfix`'s exporter patch as a no-op against a DaemonSet nothing had created.
+on `:9835`, the `netfix` layer's hostNetwork patch target) from manifests vendored in
+[`prereqs/`](prereqs/README.md) — committed, pinned copies instead of `kubectl apply -f
+<upstream-url>` / a live `helm install` — via [`prereqs/install.sh`](prereqs/install.sh)
+(see [`prereqs/README.md`](prereqs/README.md) for what's vendored and why). Neither
+ships with k3s or kube-prometheus-stack, so before this layer existed `make up` on a
+fresh cluster left `netfix`'s exporter patch as a no-op against a DaemonSet nothing had
+created. Set `GPU_TIME_SLICING=1` to install the time-slicing device-plugin variant
+instead of the plain one, advertising 2 schedulable `nvidia.com/gpu` units per card —
+see
+[`phase-2-capstone/gpu-node/vllm-timeslice.yaml`](../phase-2-capstone/gpu-node/vllm-timeslice.yaml).
 
 ## Why these workarounds exist
 
@@ -69,5 +75,5 @@ Override any of these via environment (defaults shown):
 KUBECTL=kubectl  AGENT_NODE=kaiser-laptop  AGENT_IP=192.168.18.142
 PROM_ADDR=http://192.168.18.142:9090
 CERT_MANAGER_VER=v1.16.2  KSERVE_VER=v0.14.1  KEDA_VER=v2.16.1
-DEVICE_PLUGIN_VER=v0.16.2  GPU_EXPORTER_VER=<chart's latest>   # prereqs layer
+GPU_TIME_SLICING=0   # 1 = time-sliced device plugin (2 GPU units/card); prereqs layer
 ```

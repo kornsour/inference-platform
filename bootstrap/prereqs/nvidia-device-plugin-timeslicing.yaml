@@ -1,0 +1,83 @@
+# GPU time-slicing variant of nvidia-device-plugin.yaml — applies INSTEAD of it (same
+# DaemonSet name/namespace, so applying one replaces the other) to demonstrate two
+# vLLM replicas sharing one physical 8 GB card.
+#
+# Why time-slicing and not MIG: MIG (Multi-Instance GPU) partitions a card into
+# hardware-isolated slices, but it is an Ampere-and-later **datacenter** feature (A100,
+# H100, ...) gated out of consumer silicon entirely — `nvidia-smi mig -lgip` reports
+# "not supported" on a GeForce/RTX card, full stop, driver version is irrelevant. Neither
+# of this cluster's cards (RTX 3060 Ti, RTX 4070 Laptop, see
+# ../../phase-2-capstone/gpu-node/diy-cluster.md) can do it. The applicable mechanism on
+# GeForce is CUDA **time-slicing** (interleaved compute, no isolation — a crashed replica
+# can take the other down with it) or **MPS** (space-partitioned, needs a control daemon).
+# Time-slicing is what's configured here: no daemon, no driver requirement beyond what's
+# already installed, and it's exactly what makes `maxReplicaCount > 2` in
+# ../../phase-2-capstone/gpu-node/keda-scaledobject-gpu.yaml meaningful on a two-GPU
+# cluster — without it, `nvidia.com/gpu` capacity hard-caps replicas at one per card.
+#
+# Config format is upstream NVIDIA k8s-device-plugin v0.16.2 (see its README, "Shared
+# Access to GPUs" / "With CUDA Time-Slicing"): the plugin is pointed at this ConfigMap via
+# the `CONFIG_FILE` env var, mounted at /etc/nvidia/config.yaml.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nvidia-device-plugin-timeslicing-config
+  namespace: kube-system
+data:
+  config.yaml: |
+    version: v1
+    sharing:
+      timeSlicing:
+        resources:
+          - name: nvidia.com/gpu
+            # 2 replicas per physical GPU: enough to demonstrate a shared card
+            # (2 vLLM pods on 1 GPU, see phase-2-capstone/gpu-node/vllm-timeslice.yaml)
+            # without slicing an 8 GB card thin enough that neither replica boots.
+            replicas: 2
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: nvidia-device-plugin-daemonset
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      name: nvidia-device-plugin-ds
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        name: nvidia-device-plugin-ds
+    spec:
+      runtimeClassName: nvidia
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      priorityClassName: "system-node-critical"
+      containers:
+        - image: nvcr.io/nvidia/k8s-device-plugin:v0.16.2
+          name: nvidia-device-plugin-ctr
+          env:
+            - name: FAIL_ON_INIT_ERROR
+              value: "false"
+            - name: CONFIG_FILE
+              value: /etc/nvidia/config.yaml
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: device-plugin
+              mountPath: /var/lib/kubelet/device-plugins
+            - name: timeslicing-config
+              mountPath: /etc/nvidia
+      volumes:
+        - name: device-plugin
+          hostPath:
+            path: /var/lib/kubelet/device-plugins
+        - name: timeslicing-config
+          configMap:
+            name: nvidia-device-plugin-timeslicing-config

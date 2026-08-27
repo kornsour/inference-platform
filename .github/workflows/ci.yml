@@ -47,6 +47,8 @@ jobs:
             phase-2-capstone/gpu-node/external-vllm.yaml \
             phase-2-capstone/gpu-node/vllm-plain.yaml \
             phase-2-capstone/gpu-node/vllm-2gpu.yaml \
+            phase-2-capstone/gpu-node/vllm-timeslice.yaml \
+            phase-2-capstone/gpu-node/gpu-scheduling-policy.yaml \
             phase-2-capstone/gpu-node/observability.yaml \
             phase-2-capstone/gpu-node/kserve-inferenceservice.yaml \
             phase-2-capstone/gpu-node/keda-scaledobject-gpu.yaml \

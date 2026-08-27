@@ -1,0 +1,97 @@
+# Two vLLM replicas sharing ONE physical GPU via CUDA time-slicing — the natural next
+# result past vllm-2gpu.yaml's "one replica per card": with the time-slicing device
+# plugin (../../bootstrap/prereqs/nvidia-device-plugin-timeslicing.yaml) applied, each
+# physical 8 GB card advertises 2 schedulable `nvidia.com/gpu` units, so
+# `maxReplicaCount: 2` in keda-scaledobject-gpu.yaml can mean "2 replicas on this card"
+# and not just "1 replica per card, 2 cards total".
+#
+# Requires:
+#   kubectl apply -f ../../bootstrap/prereqs/nvidia-device-plugin-timeslicing.yaml
+#   kubectl apply -f gpu-scheduling-policy.yaml      # PriorityClass + ResourceQuota
+#
+# Deliberately the INVERSE of vllm-2gpu.yaml's affinity: that manifest uses
+# `podAntiAffinity` to keep one replica per host; this one pins BOTH replicas to the
+# SAME node (nodeSelector) so they land on the same physical card and actually share it,
+# which is the thing being demonstrated.
+#
+# Sized to fit two replicas in one 8 GB card's free pool (~6.7 GB, see vllm-2gpu.yaml):
+# 1.5B FP16 weights are ~3 GB, so 0.35 gpu-memory-utilization x2 replicas leaves headroom
+# for both KV caches plus CUDA overhead without OOM-killing either. `--enforce-eager`
+# drops CUDA-graph capture (~1 GB) per replica, per the tuning finding in
+# real-gpu-results.md's 3B run.
+#
+# What this file demonstrates in-cluster: the scheduling side of a shared card (both
+# pods `Running`+`Ready` on one node, each holding a distinct time-sliced
+# `nvidia.com/gpu` unit). It intentionally does NOT ship captured throughput/TTFT
+# numbers for the shared-card case — those need an actual run on the DIY cluster's
+# hardware; append them to real-gpu-results.md the same way the single-replica and
+# two-GPU runs were captured, using ../loadtest/gpu-loadtest.py against both replicas
+# concurrently (`kubectl port-forward` each pod to a different local port).
+#
+# Unlike vllm-2gpu.yaml, this does NOT need hostNetwork: both replicas are pinned to
+# the SAME node, and the broken overlay documented in
+# docs/cluster-troubleshooting-log.md is specifically the CROSS-node VXLAN path — pods
+# on the same node reach each other over the local CNI bridge, which works. Plain pod
+# networking also sidesteps the two replicas fighting over one host port 8000.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm-qwen-timeslice
+  namespace: inference
+  labels:
+    app: vllm-qwen-timeslice
+spec:
+  replicas: 2
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: vllm-qwen-timeslice
+  template:
+    metadata:
+      labels:
+        app: vllm-qwen-timeslice
+    spec:
+      runtimeClassName: nvidia
+      priorityClassName: gpu-serving
+      # Pin both replicas to the SAME GPU node — the point is to share one card, not
+      # spread across two. Swap for the laptop's hostname to demo on the other card.
+      nodeSelector:
+        kubernetes.io/hostname: kaiser-desktop
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:latest
+          args:
+            - --model=Qwen/Qwen2.5-1.5B-Instruct
+            - --served-model-name=qwen
+            - --gpu-memory-utilization=0.35    # x2 replicas ~= 0.70 of the card, leaves headroom
+            - --max-model-len=4096
+            - --enforce-eager                  # drop CUDA-graph capture to fit two replicas
+            - --port=8000
+          ports:
+            - name: http
+              containerPort: 8000
+          resources:
+            requests:
+              cpu: "1"
+              memory: 4Gi
+              nvidia.com/gpu: 1     # one time-sliced unit; requests == limits is required for extended resources
+            limits:
+              cpu: "2"
+              memory: 6Gi
+              nvidia.com/gpu: 1
+          volumeMounts:
+            - name: dshm
+              mountPath: /dev/shm
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 40
+            periodSeconds: 10
+            failureThreshold: 90
+      volumes:
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 1Gi
