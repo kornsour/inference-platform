@@ -4,8 +4,14 @@
 #
 # Apply with Argo CD installed: `kubectl apply -f gitops/applications.yaml`.
 # NOTE: each Application uses a directory `include` filter so only the *canonical* manifests
-# sync — gpu-node/ also holds alternatives (vllm-plain.yaml, kserve-inferenceservice.yaml)
-# that intentionally aren't part of the synced desired state.
+# sync — gpu-node/ also holds alternatives (vllm-plain.yaml, kserve-inferenceservice.yaml,
+# keda-scaledobject-gpu.yaml) that intentionally aren't part of the synced desired state.
+#
+# Scaling path: the custom Go external scaler (keda-inference-scaler/) is the default —
+# its composite queue-depth+KV-cache trigger is a stronger story than two independent
+# built-in Prometheus triggers. keda-scaledobject-gpu.yaml is the built-in-scaler
+# alternative, kept for reference/rollback but excluded from the include filter below —
+# only one ScaledObject may target the vllm-qwen Deployment.
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -21,7 +27,9 @@ spec:
     targetRevision: main
     path: phase-2-capstone/gpu-node
     directory:
-      include: "{vllm-2gpu.yaml,observability.yaml,keda-scaledobject-gpu.yaml,slo-prometheusrule.yaml}"
+      include: "{vllm-2gpu.yaml,observability.yaml,slo-prometheusrule.yaml}"
+      # keda-scaledobject-gpu.yaml (built-in-scaler alternative) intentionally excluded —
+      # the ScaledObject is synced by the inference-scaler Application below instead.
   destination:
     server: https://kubernetes.default.svc
     namespace: inference
@@ -46,7 +54,9 @@ spec:
     targetRevision: main
     path: phase-2-capstone/keda-inference-scaler/deploy
     directory:
-      include: "scaler.yaml"   # the ScaledObject is owned by inference-serving above
+      # scaler.yaml: the external scaler Deployment/Service. scaledobject-external.yaml:
+      # the ScaledObject wired to it — the default scaling path (see note above).
+      include: "{scaler.yaml,scaledobject-external.yaml}"
   destination:
     server: https://kubernetes.default.svc
     namespace: inference

@@ -1,6 +1,8 @@
 # ScaledObject that scales vLLM via the CUSTOM external scaler (one composite trigger).
-# Apply this OR the built-in-scaler version (gpu-node/keda-scaledobject-gpu.yaml) — only
-# one ScaledObject may target a given Deployment.
+# This is the DEFAULT scaling path — the one bootstrap/platform.sh's autoscaling() layer
+# and gitops/applications.yaml's inference-scaler Application actually deploy/sync. Apply
+# this OR the built-in-scaler version (gpu-node/keda-scaledobject-gpu.yaml) — only one
+# ScaledObject may target a given Deployment.
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
@@ -10,7 +12,7 @@ spec:
   scaleTargetRef:
     name: vllm-qwen
   minReplicaCount: 1
-  maxReplicaCount: 2
+  maxReplicaCount: 2           # two physical GPUs — matches gpu-node/keda-scaledobject-gpu.yaml
   pollingInterval: 15
   cooldownPeriod: 60
   triggers:

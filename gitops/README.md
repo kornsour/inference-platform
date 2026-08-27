@@ -11,13 +11,15 @@ lints, schema-validates, and builds every change before it merges.
 
 | Application | Syncs | Into |
 |---|---|---|
-| `inference-serving` | `vllm-2gpu.yaml` + `observability.yaml` (Service, PodMonitor, SLO `PrometheusRule`, Grafana dashboard `ConfigMap`) + `keda-scaledobject-gpu.yaml` | `inference` ns (dashboard `ConfigMap` into `monitoring`, its own manifest-declared namespace) |
-| `inference-scaler` | the Go external scaler `Deployment`/`Service` | `inference` ns |
+| `inference-serving` | `vllm-2gpu.yaml` + `observability.yaml` (Service, PodMonitor, SLO `PrometheusRule`, Grafana dashboard `ConfigMap`) | `inference` ns (dashboard `ConfigMap` into `monitoring`, its own manifest-declared namespace) |
+| `inference-scaler` | the Go external scaler `Deployment`/`Service` + its `scaledobject-external.yaml` `ScaledObject` | `inference` ns |
 
 Both use `automated` sync with `prune` and `selfHeal`, so drift is corrected and deletions in
-git propagate. A directory `include` filter keeps the alternative manifests in
-`gpu-node/` (`vllm-plain.yaml`, `kserve-inferenceservice.yaml`) out of the synced set, since
-they're documented options, not the running desired state.
+git propagate. A directory `include` filter keeps alternative manifests — `gpu-node/`'s
+`vllm-plain.yaml`, `kserve-inferenceservice.yaml`, and the built-in-scaler
+`keda-scaledobject-gpu.yaml` — out of the synced set, since they're documented options, not
+the running desired state. The custom Go external scaler's composite ScaledObject
+(`keda-inference-scaler/deploy/scaledobject-external.yaml`) is the default scaling path.
 
 ## Install & apply
 

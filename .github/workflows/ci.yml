@@ -8,14 +8,14 @@ on:
     paths:
       - "phase-2-capstone/**"
       - "phase-1-foundations/**.py"
-      - "bootstrap/prereqs/**"
+      - "bootstrap/**"
       - ".github/workflows/ci.yml"
       - ".yamllint.yaml"
   pull_request:
     paths:
       - "phase-2-capstone/**"
       - "phase-1-foundations/**.py"
-      - "bootstrap/prereqs/**"
+      - "bootstrap/**"
       - ".github/workflows/ci.yml"
       - ".yamllint.yaml"
 
@@ -26,13 +26,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: yamllint
-        run: pipx run yamllint -c .yamllint.yaml phase-2-capstone bootstrap/prereqs
+        run: pipx run yamllint -c .yamllint.yaml phase-2-capstone bootstrap
       - name: kubeconform (schema validation)
         run: |
           curl -sSL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz | tar xz kubeconform
           # CRDs (KEDA ScaledObject, Prometheus ServiceMonitor/PrometheusRule,
-          # KServe InferenceService) aren't in the core schema set — skip those,
-          # but strictly validate the built-in resources (Deployment, Service…).
+          # KServe InferenceService, Gateway API Gateway/GatewayClass, Envoy AI
+          # Gateway AIGatewayRoute/AIServiceBackend) aren't in the core schema
+          # set — skip those, but strictly validate the built-in resources
+          # (Deployment, Service…). `bootstrap` (currently just
+          # bootstrap/envoy/ai-gateway.yaml) is included here so its manifests
+          # get the same yamllint/kubeconform pass everything else does — the
+          # GatewayClass/Gateway/AIGatewayRoute/AIServiceBackend kinds are
+          # skipped for schema (no CRD schema published for them), but this
+          # still catches YAML syntax errors, duplicate keys, and any move to
+          # a resource kind that *does* have a known schema.
           ./kubeconform -strict -ignore-missing-schemas -summary \
             phase-2-capstone/local/manifests \
             phase-2-capstone/k8s \
@@ -47,9 +55,7 @@ jobs:
             phase-2-capstone/gpu-node/slo-prometheusrule.yaml \
             phase-2-capstone/keda-inference-scaler/deploy \
             phase-2-capstone/loadtest/incluster-load.yaml \
-            bootstrap/prereqs/nvidia-device-plugin.yaml \
-            bootstrap/prereqs/nvidia-device-plugin-timeslicing.yaml \
-            bootstrap/prereqs/nvidia-gpu-exporter.yaml
+            bootstrap
 
   image:
     name: Lint & build mock image

@@ -13,6 +13,20 @@ local mock.
 - **Method:** load driven on-node against `127.0.0.1:8000`; throughput cross-checked
   against `vllm:generation_tokens_total`; power via `nvidia-smi` under load.
 
+!!! warning "Provenance: Runs 1–4 below predate the committed-run-directory convention"
+    [`runs/README.md`](runs/README.md) defines a convention — one `runs/<date>-<run-name>/` directory per
+    benchmark, holding the exact invocation, its stdout, `nvidia-smi` output under load,
+    the raw vLLM `/metrics` scrape at peak, and the vLLM image digest — and
+    [`runs/capture-run.sh`](runs/capture-run.sh) automates capturing it from the GPU node.
+    That tooling didn't exist yet when the four runs below were captured, and their raw
+    output wasn't retained outside the numbers already written into this file, so none of
+    them currently have a committed run directory to link from their table caption.
+    Backfilling that provenance means re-running each benchmark on the physical two-GPU
+    cluster with `capture-run.sh`; until that happens, treat the tables below as
+    transcribed rather than re-derivable. See [`runs/README.md`](runs/README.md) for the
+    full convention — every run captured from here on must land there before its numbers
+    are quoted anywhere in this repo.
+
 ---
 
 ## Run 1: Qwen2.5-1.5B-Instruct (FP16) on RTX 4070 Laptop (8 GB)
