@@ -1,13 +1,23 @@
-# SLO + alerting for the inference platform.
+# SLO + alerting for the inference platform — GPU-cluster copy.
 #
 # SLI:  TTFT p95 over a rolling 5m window.
 # SLO:  95% of requests served with TTFT < 1s (i.e. a 5% error budget).
 # The `release: kube-prometheus-stack` label makes the Prometheus Operator pick
 # this rule up (matches the default ruleSelector).
 #
-# Same file (metric names included) applies unchanged to the GPU cluster — see
-# ../../gpu-node/slo-prometheusrule.yaml, which mirrors this ruleset because a
-# real vLLM engine emits the identical `vllm:*` metric names the mock does.
+# Mirrors ../local/manifests/slo-prometheusrule.yaml rule-for-rule — a real
+# vLLM engine emits the identical `vllm:*` metric names the local mock does
+# (see local/mock-vllm/app.py), so the same PromQL applies unchanged. The two
+# differ in this header, the alert `service` label (`vllm-qwen` here, matching
+# the real Deployment/Service name in observability.yaml — the local mock's
+# rule keeps `mock-vllm`), and the `nvidia_smi_power_draw_watts` cost query
+# actually resolving here, against the real nvidia_gpu_exporter (see
+# diy-cluster.md) instead of reading "no data" on a GPU-less kind cluster.
+# Applied by bootstrap/platform.sh's serving() layer, after observability.yaml
+# (whose own SLI/SLO rule this supersedes on apply, same "inference-slo" name
+# — see the note there) and synced by Argo CD via gitops/applications.yaml
+# (inference-serving Application) — see the bootstrap issue for the rest of
+# that layer's Service/PodMonitor wiring.
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
@@ -72,15 +82,14 @@ spec:
       rules:
         # Cost per 1M output tokens, derived from GPU power draw (the
         # `nvidia_smi_power_draw_watts` gauge the nvidia_gpu_exporter exposes —
-        # see gpu-node/diy-cluster.md) and a $/kWh rate, divided by observed
-        # throughput. This promotes the footnote arithmetic in
-        # gpu-node/real-gpu-results.md (81 W / 2,600 tok/s @ $0.17/kWh ≈
-        # $0.0015 per 1M tokens) into a live query instead of hand math.
-        # $/kWh is pinned to that same figure — swap it for your local utility
-        # rate. No `nvidia_smi_*` series exist on the local kind cluster (no
-        # real GPU), so this reads as "no data" there and only resolves on the
-        # GPU cluster; the local stack still evaluates the same rule so the
-        # dashboard panel and PromQL are identical in both places.
+        # see diy-cluster.md) and a $/kWh rate, divided by observed throughput.
+        # This promotes the footnote arithmetic in real-gpu-results.md (81 W /
+        # 2,600 tok/s @ $0.17/kWh ≈ $0.0015 per 1M tokens) into a live query
+        # instead of hand math. $/kWh is pinned to that same figure — swap it
+        # for your local utility rate. This is the one rule in this file that
+        # only resolves here: the local kind cluster has no real GPU or
+        # nvidia_smi_* series, so the identical rule in
+        # ../local/manifests/slo-prometheusrule.yaml reads "no data" there.
         - record: job:inference_cost_per_1m_tokens:5m
           expr: (sum(nvidia_smi_power_draw_watts) * 0.17 * 1000) / (3600 * sum(rate(vllm:generation_tokens_total[5m])))
 
@@ -92,7 +101,7 @@ spec:
           for: 5m
           labels:
             severity: warning
-            service: mock-vllm
+            service: vllm-qwen
           annotations:
             summary: "Inference TTFT p95 over SLO (>1s)"
             description: "TTFT p95 has been {{ $value | humanizeDuration }} for 5m (SLO: <1s). The autoscaler should be adding replicas; if it isn't, check KEDA and the Prometheus triggers."
@@ -104,7 +113,7 @@ spec:
           for: 2m
           labels:
             severity: warning
-            service: mock-vllm
+            service: vllm-qwen
           annotations:
             summary: "Inference request queue backing up"
             description: "{{ $value }} requests waiting for a decode slot for 2m — scale-out signal."
@@ -121,7 +130,7 @@ spec:
           for: 2m
           labels:
             severity: critical
-            service: mock-vllm
+            service: vllm-qwen
           annotations:
             summary: "TTFT error budget burning fast (page)"
             description: "TTFT SLO burn rate is {{ $value | printf \"%.1f\" }}x over both the 1h and 5m windows — at this rate the 30-day error budget is gone in ~2 hours. Check replica count, KV-cache pressure, and whether KEDA is scaling out."
@@ -134,7 +143,7 @@ spec:
           for: 15m
           labels:
             severity: warning
-            service: mock-vllm
+            service: vllm-qwen
           annotations:
             summary: "TTFT error budget burning steadily (ticket)"
             description: "TTFT SLO burn rate is {{ $value | printf \"%.1f\" }}x over both the 6h and 30m windows — sustained low-grade degradation that will exhaust the 30-day budget in a few days if it continues. Investigate before it becomes a page."
@@ -147,7 +156,7 @@ spec:
           for: 15m
           labels:
             severity: warning
-            service: mock-vllm
+            service: vllm-qwen
           annotations:
             summary: "Inference cost per 1M tokens over budget"
             description: "Cost/1M tokens has been ${{ $value | printf \"%.4f\" }} for 15m (budget: $0.01, observed baseline ~$0.0015-0.005 in gpu-node/real-gpu-results.md) — GPU power draw is high relative to throughput."

@@ -1,0 +1,13 @@
+NAME                         READY   STATUS              RESTARTS   AGE
+gameday-loadgen              1/1     Running             0          18s
+mock-vllm-78df6984c4-965wm   0/1     ContainerCreating   0          0s
+mock-vllm-78df6984c4-j8n5v   1/1     Terminating         0          2m19s
+mock-vllm-78df6984c4-qqsgr   1/1     Running             0          82s
+mock-vllm-78df6984c4-965wm   0/1     ContainerCreating   0          0s
+mock-vllm-78df6984c4-965wm   0/1     Running             0          0s
+mock-vllm-78df6984c4-j8n5v   0/1     Completed           0          2m20s
+mock-vllm-78df6984c4-j8n5v   0/1     Completed           0          2m20s
+mock-vllm-78df6984c4-j8n5v   0/1     Completed           0          2m20s
+mock-vllm-78df6984c4-j8n5v   0/1     Completed           0          2m20s
+mock-vllm-78df6984c4-965wm   1/1     Running             0          10s
+mock-vllm-78df6984c4-965wm   1/1     Running             0          10s

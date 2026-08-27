@@ -40,49 +40,14 @@ spec:
       path: /metrics
       interval: 15s
 ---
-# SLO + alerting — identical SLI/SLO to local/manifests/slo-prometheusrule.yaml
-# (TTFT p95 < 1s over 5m), just labeled for the real vLLM service instead of the mock.
-apiVersion: monitoring.coreos.com/v1
-kind: PrometheusRule
-metadata:
-  name: inference-slo
-  namespace: inference
-  labels:
-    release: kube-prometheus-stack
-spec:
-  groups:
-    - name: inference.sli
-      interval: 15s
-      rules:
-        - record: job:vllm_ttft_p95_seconds:5m
-          expr: histogram_quantile(0.95, sum(rate(vllm:time_to_first_token_seconds_bucket[5m])) by (le))
-        - record: job:vllm_ttft_p50_seconds:5m
-          expr: histogram_quantile(0.50, sum(rate(vllm:time_to_first_token_seconds_bucket[5m])) by (le))
-        - record: job:vllm_tokens_per_second:1m
-          expr: sum(rate(vllm:generation_tokens_total[1m]))
-
-    - name: inference.slo
-      rules:
-        - alert: InferenceTTFTSLOBreach
-          expr: job:vllm_ttft_p95_seconds:5m > 1
-          for: 5m
-          labels:
-            severity: warning
-            service: vllm-qwen
-          annotations:
-            summary: "Inference TTFT p95 over SLO (>1s)"
-            description: "TTFT p95 has been {{ $value | humanizeDuration }} for 5m (SLO: <1s). The ScaledObject should be adding replicas; if it isn't, check KEDA and the Prometheus triggers."
-
-        - alert: InferenceQueueBacklog
-          expr: sum(vllm:num_requests_waiting) > 5
-          for: 2m
-          labels:
-            severity: warning
-            service: vllm-qwen
-          annotations:
-            summary: "Inference request queue backing up"
-            description: "{{ $value }} requests waiting for a decode slot for 2m — scale-out signal."
----
+# The SLO/error-budget/cost PrometheusRule (same "inference-slo" resource
+# name) is defined once, in slo-prometheusrule.yaml — not here. It's a
+# superset of what used to live in this file (adds error-budget and cost
+# burn-rate groups on top of the same SLI/SLO rules), and two PrometheusRule
+# manifests sharing one name+namespace don't merge on apply — whichever one
+# is applied second silently replaces the other's groups, not adds to them.
+# bootstrap/platform.sh's serving() applies this file, then
+# slo-prometheusrule.yaml, so that one wins and stays the single source.
 # Same dashboard as phase-2-capstone/local/grafana/inference-dashboard.json, applied
 # declaratively (the local stack loads it imperatively via `make dashboard`) and with
 # the "Replicas" panel pointed at the real Deployment name (vllm-qwen, not mock-vllm).

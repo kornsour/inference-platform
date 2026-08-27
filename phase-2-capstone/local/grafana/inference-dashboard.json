@@ -112,6 +112,50 @@
       "targets": [
         { "refId": "A", "expr": "sum(kube_deployment_status_replicas{namespace=\"inference\", deployment=\"mock-vllm\"})", "legendFormat": "replicas" }
       ]
+    },
+    {
+      "id": 7,
+      "title": "Cost per 1M tokens",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 0.01 } ] }
+        },
+        "overrides": []
+      },
+      "targets": [
+        { "refId": "A", "expr": "job:inference_cost_per_1m_tokens:5m", "legendFormat": "$/1M tokens" }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "TTFT error-budget burn rate",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 6 },
+              { "color": "red", "value": 14.4 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "table", "calcs": ["last", "max"] } },
+      "targets": [
+        { "refId": "A", "expr": "job:vllm_ttft_burn_rate:5m", "legendFormat": "burn rate (5m)" },
+        { "refId": "B", "expr": "job:vllm_ttft_burn_rate:1h", "legendFormat": "burn rate (1h)" },
+        { "refId": "C", "expr": "job:vllm_ttft_burn_rate:6h", "legendFormat": "burn rate (6h)" }
+      ]
     }
   ]
 }
