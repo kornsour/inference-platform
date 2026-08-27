@@ -38,18 +38,45 @@ check_file() {
 }
 
 check_file "main.go" true
-check_file "main_test.go" false
+# main_test.go now imports the split internal/* packages (see below), so it
+# needs the same module-path substitution as main.go — it stopped being a
+# plain, self-contained file the day upstream split main() apart.
+check_file "main_test.go" true
 check_file "Dockerfile" false
+
+# Upstream split main() into internal/{config,metrics,observability,saturation}
+# packages (kornsour/keda-inference-scaler#11). Vendored 1:1, same as main.go —
+# every file here needs the same substitution, since these are same-module Go
+# packages, not a separate dependency.
+for f in \
+  internal/config/config.go \
+  internal/config/config_test.go \
+  internal/metrics/cache.go \
+  internal/metrics/cache_test.go \
+  internal/metrics/metrics.go \
+  internal/metrics/metrics_test.go \
+  internal/observability/health.go \
+  internal/observability/health_test.go \
+  internal/observability/metrics.go \
+  internal/observability/metrics_test.go \
+  internal/observability/server.go \
+  internal/observability/server_test.go \
+  internal/saturation/saturation.go \
+  internal/saturation/saturation_test.go \
+; do
+  check_file "$f" true
+done
 
 if [ "$status" -ne 0 ]; then
   cat <<EOF
 
 The vendored copy under phase-2-capstone/keda-inference-scaler/ has diverged
-from the standalone repo (${UPSTREAM_REPO}). Port the change to both, or if
-the drift is intentional (e.g. a deliberate temporary pin), update this
-script's expectations alongside it.
+from the standalone repo (${UPSTREAM_REPO}). Port the change to both (adding
+any new internal/* file to the list in this script too), or if the drift is
+intentional (e.g. a deliberate temporary pin), update this script's
+expectations alongside it.
 EOF
   exit 1
 fi
 
-echo "OK: main.go, main_test.go, and Dockerfile match ${UPSTREAM_REPO}@${UPSTREAM_REF}"
+echo "OK: main.go, main_test.go, Dockerfile, and internal/* match ${UPSTREAM_REPO}@${UPSTREAM_REF}"
