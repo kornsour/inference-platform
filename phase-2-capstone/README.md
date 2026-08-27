@@ -61,7 +61,7 @@
 ### Ship real code and treat it like a product platform
 
 - [x] Build at least one genuine code component in a named language: a **custom KEDA external scaler in Go** ([`keda-inference-scaler/`](keda-inference-scaler/README.md)) that scales on a composite KV-cache plus queue-depth signal, which is one trigger the built-in scaler cannot express, plus the [`gpu-loadtest.py`](loadtest/gpu-loadtest.py) harness. Not just YAML.
-- [ ] Land **one small PR to an OSS inference project** (vLLM / KServe / KEDA) and link it from the write-up. Submitted to KEDA in [external-scalers#34](https://github.com/kedacore/external-scalers/pull/34) (draft, DCO green), adding the [standalone scaler repo](https://github.com/kornsour/keda-inference-scaler) to the community list.
+- [ ] Land **one small PR to an OSS inference project** (vLLM / KServe / KEDA) and link it from the write-up. First attempt, [external-scalers#34](https://github.com/kedacore/external-scalers/pull/34), closed 2026-08-16 without merging (unreviewed for ~7 weeks). Next: list the [standalone scaler repo](https://github.com/kornsour/keda-inference-scaler) on Artifact Hub, KEDA's documented channel for community scalers — see [`oss-contribution.md`](oss-contribution.md) for details and fallback.
 - [x] **GitOps and CI.** GitHub Actions ([`ci.yml`](https://github.com/kornsour/inference-platform/blob/main/.github/workflows/ci.yml)) lints and schema-validates every manifest and builds and tests the Go scaler. Argo CD `Application`s ([`gitops/`](../gitops/README.md)) declare the platform for continuous reconciliation. A Terraform/Helm IaC pass remains.
 - [x] The stack is **CNCF end to end.** KServe, KEDA, Prometheus, and Argo CD are all CNCF projects (Argo CD, KEDA, and Prometheus are graduated).
 
