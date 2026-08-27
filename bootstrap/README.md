@@ -23,7 +23,7 @@ Per-layer targets let you bring up / tear down one piece: `make serving`, `make 
 | `platform` | cert-manager → KEDA → KServe | controllers + webhooks; the **agent is cordoned** first so they land on the API-server node |
 | `netfix` | hostNetwork Prometheus + GPU exporters; CoreDNS → server | the overlay workarounds that make metrics + DNS reachable |
 | `serving` | vLLM (two-GPU) + nginx LB + `Service`/`PodMonitor`/SLO `PrometheusRule`/Grafana dashboard | the workload and everything that scrapes, alerts on, and dashboards it |
-| `autoscaling` | KEDA `ScaledObject` (queue + KV-cache) | needs Prometheus reachable (netfix) and the PodMonitor scraping (serving) |
+| `autoscaling` | custom Go external scaler + its `ScaledObject` (composite queue + KV-cache trigger) | needs Prometheus reachable (netfix) and the PodMonitor scraping (serving) |
 | `gitops` | Argo CD + `Application`s | declarative CD for the above |
 | `gateway` | Envoy AI Gateway | needs `Service/vllm-qwen` (serving) to route to |
 

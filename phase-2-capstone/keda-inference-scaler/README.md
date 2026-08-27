@@ -46,6 +46,10 @@ any change to both repos (or run the script locally after a change here or there
 
 ## Deploy
 
+This is the **default** scaling path — `bootstrap/platform.sh`'s `autoscaling()` layer and
+`gitops/applications.yaml`'s `inference-scaler` Application both deploy/sync it, in place of
+the built-in-scaler `gpu-node/keda-scaledobject-gpu.yaml` alternative.
+
 `deploy/scaler.yaml` runs the scaler (Deployment + Service on `:6000`).
 `deploy/scaledobject-external.yaml` is a KEDA `ScaledObject` whose `external` trigger points
 at it. Note `prometheusAddress` uses the **laptop node IP and NodePort**, not the Prometheus

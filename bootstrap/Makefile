@@ -13,7 +13,7 @@ prereqs:          ; $(SH) prereqs         ## NVIDIA device plugin + GPU exporter
 platform:         ; $(SH) platform        ## cert-manager + KEDA + KServe
 netfix:           ; $(SH) netfix          ## WSL2 overlay workarounds
 serving:          ; $(SH) serving         ## vLLM two-GPU + Service/PodMonitor/SLO/dashboard
-autoscaling:      ; $(SH) autoscaling     ## KEDA ScaledObject
+autoscaling:      ; $(SH) autoscaling     ## Go external scaler + ScaledObject
 gitops:           ; $(SH) gitops          ## Argo CD + Applications
 gateway:          ; $(SH) gateway         ## Envoy AI Gateway
 
