@@ -11,7 +11,7 @@ lints, schema-validates, and builds every change before it merges.
 
 | Application | Syncs | Into |
 |---|---|---|
-| `inference-serving` | `vllm-2gpu.yaml` + `keda-scaledobject-gpu.yaml` | `inference` ns |
+| `inference-serving` | `vllm-2gpu.yaml` + `observability.yaml` (Service, PodMonitor, SLO `PrometheusRule`, Grafana dashboard `ConfigMap`) + `keda-scaledobject-gpu.yaml` | `inference` ns (dashboard `ConfigMap` into `monitoring`, its own manifest-declared namespace) |
 | `inference-scaler` | the Go external scaler `Deployment`/`Service` | `inference` ns |
 
 Both use `automated` sync with `prune` and `selfHeal`, so drift is corrected and deletions in
