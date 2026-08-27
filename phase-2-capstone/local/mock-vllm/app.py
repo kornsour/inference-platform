@@ -11,6 +11,7 @@ speaks the OpenAI streaming chat API and exposes Prometheus metrics using the
     vllm:time_to_first_token_seconds histogram
     vllm:time_per_output_token_seconds histogram
     vllm:generation_tokens_total     counter
+    vllm:request_success_total       counter{finished_reason}  <- availability/error-rate SLIs
 
 Because the names match, the Prometheus queries, PodMonitor, KEDA ScaledObject,
 and Grafana panels you build against this mock work unchanged when a real vLLM
@@ -18,11 +19,15 @@ on a GPU replaces it. Concurrency is bounded by CAPACITY "decode slots" (a stand
 -in for KV-cache capacity); requests beyond that queue and count as *waiting*,
 which is exactly the signal that should drive scale-out.
 
-Tunables (env): CAPACITY, GEN_TOKENS, TPOT_SECONDS, PREFILL_SECONDS.
+Tunables (env): CAPACITY, GEN_TOKENS, TPOT_SECONDS, PREFILL_SECONDS, ERROR_RATE
+(fraction of requests to fail with a simulated engine abort — 0 by default;
+dial it up to drive the error-rate/availability SLIs and their alerts for a
+game day without touching real traffic).
 """
 import asyncio
 import json
 import os
+import random
 import time
 
 from fastapi import FastAPI
@@ -39,6 +44,7 @@ CAPACITY = int(os.environ.get("CAPACITY", "4"))             # concurrent decode 
 GEN_TOKENS = int(os.environ.get("GEN_TOKENS", "200"))       # tokens per response
 TPOT = float(os.environ.get("TPOT_SECONDS", "0.05"))        # time per output token
 PREFILL = float(os.environ.get("PREFILL_SECONDS", "0.30"))  # prompt processing time
+ERROR_RATE = float(os.environ.get("ERROR_RATE", "0"))       # fraction of requests to abort
 
 # vLLM-compatible metrics (colon names match the real engine's output).
 m_running = Gauge("vllm:num_requests_running", "Requests in the running batch")
@@ -49,6 +55,8 @@ m_ttft = Histogram("vllm:time_to_first_token_seconds", "Time to first token",
 m_tpot = Histogram("vllm:time_per_output_token_seconds", "Time per output token",
                    buckets=(.01, .025, .05, .1, .25, .5))
 m_gen = Counter("vllm:generation_tokens_total", "Total generated tokens")
+m_requests = Counter("vllm:request_success_total", "Finished requests by outcome",
+                     ["finished_reason"])
 
 app = FastAPI(title="mock-vllm")
 
@@ -98,6 +106,16 @@ async def chat(body: dict):
     stream = bool(body.get("stream"))
     model = body.get("model", "mock-vllm")
 
+    # Optional error injection (ERROR_RATE) — a pre-flight admission failure,
+    # same shape a real engine abort or an overloaded queue rejection takes:
+    # counted, never queued, never occupies a decode slot.
+    if ERROR_RATE and random.random() < ERROR_RATE:
+        m_requests.labels(finished_reason="abort").inc()
+        return JSONResponse(
+            {"error": {"message": "simulated engine abort", "type": "server_error"}},
+            status_code=500,
+        )
+
     async def run(emit):
         start = time.perf_counter()
         async with Slot():
@@ -116,6 +134,7 @@ async def chat(body: dict):
 
             async def producer():
                 await run(lambda tok: queue.put(tok))
+                m_requests.labels(finished_reason="stop").inc()
                 await queue.put(None)
 
             task = asyncio.create_task(producer())
@@ -132,6 +151,7 @@ async def chat(body: dict):
     # non-streaming: accumulate
     parts = []
     await run(lambda tok: parts.append(tok) or asyncio.sleep(0))
+    m_requests.labels(finished_reason="stop").inc()
     text = "".join(p if isinstance(p, str) else "" for p in parts)
     return JSONResponse({
         "object": "chat.completion", "model": model,

@@ -39,6 +39,7 @@ jobs:
             phase-2-capstone/gpu-node/vllm-2gpu.yaml \
             phase-2-capstone/gpu-node/kserve-inferenceservice.yaml \
             phase-2-capstone/gpu-node/keda-scaledobject-gpu.yaml \
+            phase-2-capstone/gpu-node/slo-prometheusrule.yaml \
             phase-2-capstone/keda-inference-scaler/deploy \
             phase-2-capstone/loadtest/incluster-load.yaml
 

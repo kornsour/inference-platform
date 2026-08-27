@@ -67,7 +67,8 @@ netfix() { # WSL2 overlay workarounds (idempotent patches)
   kctl delete pod -n kube-system -l k8s-app=kube-dns --wait=false || true
 }
 
-serving()     { log "vLLM two-GPU serving + LB";  kctl apply -f "$GPU/vllm-2gpu.yaml"; }
+serving()     { log "vLLM two-GPU serving + LB";  kctl apply -f "$GPU/vllm-2gpu.yaml"
+                log "SLO/error-budget/cost PrometheusRule"; kctl apply -f "$GPU/slo-prometheusrule.yaml"; }
 autoscaling() { log "KEDA ScaledObject (queue + KV-cache)"; kctl apply -f "$GPU/keda-scaledobject-gpu.yaml"; }
 
 gitops() {
@@ -87,7 +88,8 @@ down-gitops()      { kctl delete -f "$REPO_ROOT/gitops/applications.yaml" --igno
                      kctl delete -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml --ignore-not-found || true
                      kctl delete namespace argocd --ignore-not-found || true; }
 down-autoscaling() { kctl delete -f "$GPU/keda-scaledobject-gpu.yaml" --ignore-not-found || true; }
-down-serving()     { kctl delete -f "$GPU/vllm-2gpu.yaml" --ignore-not-found || true; }
+down-serving()     { kctl delete -f "$GPU/slo-prometheusrule.yaml" --ignore-not-found || true
+                     kctl delete -f "$GPU/vllm-2gpu.yaml" --ignore-not-found || true; }
 down-platform()    {
   kctl delete --ignore-not-found -f "https://github.com/kserve/kserve/releases/download/$KSERVE_VER/kserve.yaml" || true
   kctl delete --ignore-not-found -f "https://github.com/kedacore/keda/releases/download/$KEDA_VER/keda-$KEDA_VER.yaml" || true

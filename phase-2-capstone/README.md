@@ -2,7 +2,7 @@
 
 **Goal:** build a small but real inference platform on Kubernetes that autoscales on inference-aware signals. This is the heart of the project. It mirrors, at homelab scale, what a production inference platform does at global scale: serve open-weights models on GPUs, scale them on the signals that actually predict saturation, and make the whole thing observable, declarative, and reproducible.
 
-**Status: the core platform is built and validated on real GPUs.** The autoscaling control plane was first validated locally with no GPU on a `kind` cluster, where KEDA scaled the deployment from 1 to 5 replicas on the queue-depth signal, with Grafana dashboards, an SLO, and alerts. The build then moved onto real GPUs: the [DIY two-GPU cluster](gpu-node/diy-cluster.md) is live and serving real vLLM, with cross-node GPU and inference metrics flowing into a single Prometheus. The one core layer still pending live bring-up is the Envoy AI Gateway; the reinforcement items (canary/shadow, a game-day, disaggregated prefill/decode) are tracked as next steps in the checklist below.
+**Status: the core platform is built and validated on real GPUs.** The autoscaling control plane was first validated locally with no GPU on a `kind` cluster, where KEDA scaled the deployment from 1 to 5 replicas on the queue-depth signal, with Grafana dashboards, an SLO, and alerts. The build then moved onto real GPUs: the [DIY two-GPU cluster](gpu-node/diy-cluster.md) is live and serving real vLLM, with cross-node GPU and inference metrics flowing into a single Prometheus. The one core layer still pending live bring-up is the Envoy AI Gateway; the reinforcement items (canary/shadow, disaggregated prefill/decode) are tracked as next steps in the checklist below. The SLO layer now also covers error-budget burn rate and cost-per-token as live Prometheus queries, not just TTFT ([runbook.md](runbook.md)).
 
 **Real-GPU progress on the DIY two-GPU cluster (RTX 3060 Ti + RTX 4070, 8 GB each):**
 
@@ -55,7 +55,7 @@
 - [x] Deploy an open-weights model on Kubernetes via **KServe** with **vLLM** as the engine. Done both ways: a [plain Deployment](gpu-node/vllm-plain.yaml) and a [KServe `InferenceService`](gpu-node/kserve-inferenceservice.yaml) (RawDeployment plus the huggingface/vLLM runtime). Numbers and the operational comparison are in [real-gpu-results.md](gpu-node/real-gpu-results.md), and the trade-offs are in [architecture-decisions.md](architecture-decisions.md).
 - [x] **Autoscale with KEDA** driven by TTFT p95 or KV-cache utilization from Prometheus, not CPU. Validated locally from 1 to 5 replicas, now live on the GPU cluster as a ScaledObject autoscaling vLLM on queue-depth plus KV-cache (HPA reading `0/3, 0/700m`). See [`k8s/keda-scaledobject.yaml`](k8s/keda-scaledobject.yaml) and [`gpu-node/keda-scaledobject-gpu.yaml`](gpu-node/keda-scaledobject-gpu.yaml). This is the platform's core capability.
 - [ ] Add an **inference gateway** (Envoy AI Gateway) for token-aware rate limiting and model routing. Automated in the [bootstrap](../bootstrap/README.md) with route manifests written; live bring-up is pending because it needs helm and is the most overlay-sensitive layer.
-- [x] **Instrument everything.** Prometheus scrape plus Grafana dashboards for TTFT, inter-token latency, throughput, queue depth, and GPU utilization. One SLO defined and one alert wired. Done locally (dashboard plus TTFT-p95 SLO plus alerts), and now live on the DIY cluster with cross-node GPU and vLLM metrics in one Prometheus.
+- [x] **Instrument everything.** Prometheus scrape plus Grafana dashboards for TTFT, inter-token latency, throughput, queue depth, GPU utilization, cost-per-1M-tokens, and error-budget burn rate. A TTFT SLO, multi-window multi-burn-rate alerts, availability/error-rate SLIs, and a cost-budget alert are all live queries, not footnote arithmetic — see [`runbook.md`](runbook.md). Done locally (dashboard plus SLO/error-budget/cost `PrometheusRule` plus alerts), with cross-node GPU and vLLM metrics already flowing into one Prometheus on the DIY cluster; the [`gpu-node/slo-prometheusrule.yaml`](gpu-node/slo-prometheusrule.yaml) counterpart is wired into the bootstrap and GitOps sync for that cluster.
 - [x] **Load test** and capture saturation behavior. See [`loadtest/`](https://github.com/kornsour/inference-platform/tree/main/phase-2-capstone/loadtest). Captured locally, plus real-GPU load tests on the 2-GPU cluster ([real-gpu-results.md](gpu-node/real-gpu-results.md)).
 
 ### Ship real code and treat it like a product platform
@@ -69,7 +69,7 @@
 
 - [ ] Read disaggregated prefill/decode (NVIDIA Dynamo, llm-d). If budget allows, run prefill and decode on separate pools.
 - [ ] Add a **canary or shadow** deployment path so a new model version takes a slice of traffic before full rollout.
-- [ ] Write a short `runbook.md` and run one **game-day** failure (kill a pod mid-load). Pair it with a postmortem.
+- [x] Write a short `runbook.md` and run one **game-day** failure (kill a pod mid-load). Pair it with a postmortem. Done locally: zero failed requests, ~10s recovery ([writeup](runbook.md#game-day-kill-a-pod-mid-load), [raw evidence](local/runs/2026-08-27-gameday/README.md)).
 
 ### Milestone
 
