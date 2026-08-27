@@ -24,8 +24,20 @@ spec:
     name: vllm-qwen            # the plain vLLM Deployment (one replica per GPU at max)
   minReplicaCount: 1
   maxReplicaCount: 2           # two physical GPUs
-  pollingInterval: 15
+  # 2x the 15s scrape interval (observability.yaml), not equal to it: an equal
+  # pollingInterval/scrape_interval risks repeatedly acting on the same
+  # Prometheus sample rather than a fresh one each poll. See
+  # docs/autoscaling-signal-staleness.md for the derivation.
+  pollingInterval: 30
   cooldownPeriod: 60
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleDown:
+          # >= 2x the worst-case signal age (scrape 15s + poll 30s = 45s), well
+          # under Kubernetes' own 300s default -- see
+          # docs/autoscaling-signal-staleness.md.
+          stabilizationWindowSeconds: 90
   triggers:
     - type: prometheus
       metadata:

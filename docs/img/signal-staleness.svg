@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 340" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif">
+  <rect x="0.5" y="0.5" width="779" height="339" rx="10" fill="#ffffff" stroke="#e2e8f0"/>
+  <text x="24" y="32" font-size="15" font-weight="700" fill="#0f172a">Worst-case scaling-decision signal age, per ScaledObject</text>
+  <text x="24" y="51" font-size="12" fill="#64748b">scrape_interval + pollingInterval, as configured after this change — not a measured run</text>
+
+  <!-- legend -->
+  <g font-size="11.5">
+    <rect x="470" y="24" width="12" height="12" rx="2" fill="#c7d2fe" stroke="#6366f1"/>
+    <text x="488" y="34" fill="#334155">scrape_interval</text>
+    <rect x="470" y="42" width="12" height="12" rx="2" fill="#fde68a" stroke="#d97706"/>
+    <text x="488" y="52" fill="#334155">pollingInterval</text>
+  </g>
+
+  <!-- axis -->
+  <line x1="230" y1="70" x2="230" y2="284" stroke="#e2e8f0" stroke-width="1"/>
+  <line x1="230" y1="284" x2="720" y2="284" stroke="#e2e8f0" stroke-width="1"/>
+  <g font-size="10.5" fill="#94a3b8" text-anchor="middle">
+    <text x="230" y="298">0s</text>
+    <text x="328" y="298">10s</text>
+    <text x="426" y="298">20s</text>
+    <text x="524" y="298">30s</text>
+    <text x="622" y="298">40s</text>
+    <text x="720" y="298">50s</text>
+  </g>
+  <text x="475" y="315" font-size="11" fill="#64748b" text-anchor="middle">seconds after the underlying event, worst case</text>
+
+  <!-- 4 rows: label, scrape segment, poll segment, total annotation -->
+  <!-- scale: 9.8px per second, origin x=230 -->
+
+  <!-- row 1: local (mock) — scrape 10s, poll 20s = 30s -->
+  <g>
+    <text x="222" y="100" font-size="11.5" fill="#334155" text-anchor="end">local/manifests</text>
+    <text x="222" y="113" font-size="10" fill="#94a3b8" text-anchor="end">(mock, built-in trigger)</text>
+    <rect x="230" y="84" width="98" height="26" fill="#c7d2fe" stroke="#6366f1"/>
+    <rect x="328" y="84" width="196" height="26" fill="#fde68a" stroke="#d97706"/>
+    <text x="530" y="101" font-size="11.5" fill="#0f172a" font-weight="600">30s</text>
+  </g>
+
+  <!-- row 2: gpu-node built-in trigger — scrape 15s, poll 30s = 45s -->
+  <g>
+    <text x="222" y="152" font-size="11.5" fill="#334155" text-anchor="end">gpu-node/keda-scaledobject-gpu</text>
+    <text x="222" y="165" font-size="10" fill="#94a3b8" text-anchor="end">(real GPU, built-in trigger)</text>
+    <rect x="230" y="136" width="147" height="26" fill="#c7d2fe" stroke="#6366f1"/>
+    <rect x="377" y="136" width="294" height="26" fill="#fde68a" stroke="#d97706"/>
+    <text x="677" y="153" font-size="11.5" fill="#0f172a" font-weight="600">45s</text>
+  </g>
+
+  <!-- row 3: external scaler — scrape 15s, poll 30s = 45s -->
+  <g>
+    <text x="222" y="204" font-size="11.5" fill="#334155" text-anchor="end">keda-inference-scaler/deploy</text>
+    <text x="222" y="217" font-size="10" fill="#94a3b8" text-anchor="end">(external scaler, GetMetrics path)</text>
+    <rect x="230" y="188" width="147" height="26" fill="#c7d2fe" stroke="#6366f1"/>
+    <rect x="377" y="188" width="294" height="26" fill="#fde68a" stroke="#d97706"/>
+    <text x="677" y="205" font-size="11.5" fill="#0f172a" font-weight="600">45s</text>
+  </g>
+
+  <!-- row 4: k8s production template — scrape 15s, poll 30s = 45s -->
+  <g>
+    <text x="222" y="256" font-size="11.5" fill="#334155" text-anchor="end">k8s/keda-scaledobject</text>
+    <text x="222" y="269" font-size="10" fill="#94a3b8" text-anchor="end">(production KServe template)</text>
+    <rect x="230" y="240" width="147" height="26" fill="#c7d2fe" stroke="#6366f1"/>
+    <rect x="377" y="240" width="294" height="26" fill="#fde68a" stroke="#d97706"/>
+    <text x="677" y="257" font-size="11.5" fill="#0f172a" font-weight="600">45s</text>
+  </g>
+
+  <text x="24" y="330" font-size="10.5" fill="#64748b">docs/autoscaling-signal-staleness.md — worst_case_signal_age = scrape_interval + pollingInterval, from each file's checked-in config</text>
+</svg>

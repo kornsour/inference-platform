@@ -13,8 +13,19 @@ spec:
     name: vllm-qwen
   minReplicaCount: 1
   maxReplicaCount: 2           # two physical GPUs — matches gpu-node/keda-scaledobject-gpu.yaml
-  pollingInterval: 15
+  # 2x the 15s scrape interval (../../gpu-node/observability.yaml's PodMonitor),
+  # not equal to it -- see docs/autoscaling-signal-staleness.md. This governs
+  # the GetMetrics/HPA metric-value path; streamPollInterval below governs the
+  # scaler's own, independent StreamIsActive activation ticker.
+  pollingInterval: 30
   cooldownPeriod: 60
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleDown:
+          # >= 2x the worst-case signal age (scrape 15s + poll 30s = 45s). See
+          # docs/autoscaling-signal-staleness.md.
+          stabilizationWindowSeconds: 90
   triggers:
     - type: external
       metadata:
@@ -25,3 +36,8 @@ spec:
         queueThreshold: "3"
         kvCacheThreshold: "0.7"
         activationThreshold: "1"
+        # Same 2x-scrape-interval rule as pollingInterval above, applied to this
+        # separate ticker explicitly rather than leaving it at the scaler's
+        # default (10s -- below the 15s scrape interval, which was re-reading
+        # the same sample most ticks). See docs/autoscaling-signal-staleness.md.
+        streamPollInterval: "30s"

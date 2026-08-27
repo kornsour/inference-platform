@@ -17,11 +17,18 @@ spec:
   minReplicaCount: 1           # min 1, not 0: KEDA can't wake a scaled-to-zero
   maxReplicaCount: 5           # Deployment on a queue metric (no pod = no metric);
                                # scale-to-zero would need an HTTP activator.
+  # 2x the 10s scrape interval (servicemonitor.yaml) — a deliberate choice, not
+  # the (undocumented) 30s KEDA default this used to fall back to. Equal to the
+  # scrape interval would risk repeatedly reading the same sample; see
+  # docs/autoscaling-signal-staleness.md for the derivation and why it matters.
+  pollingInterval: 20
   advanced:
     horizontalPodAutoscalerConfig:
       behavior:
         scaleDown:
-          # Don't thrash: wait for sustained calm before scaling back in.
+          # >= 2x the worst-case signal age (scrape 10s + poll 20s = 30s), so a
+          # scale-in isn't itself reacting to a signal that's within one lag
+          # cycle of being stale. See docs/autoscaling-signal-staleness.md.
           stabilizationWindowSeconds: 60
   triggers:
     - type: prometheus

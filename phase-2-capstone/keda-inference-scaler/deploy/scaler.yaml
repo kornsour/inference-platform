@@ -1,4 +1,8 @@
 # The custom external scaler itself (built by CI -> ghcr). KEDA dials it over gRPC.
+# The "http" port is the separate observability server (health.go/server.go):
+# /healthz, /readyz, and /metrics -- including scaler_signal_age_seconds, the
+# per-decision staleness gauge (see docs/autoscaling-signal-staleness.md). It
+# needs its own ServiceMonitor (below) to actually be scraped.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -22,6 +26,20 @@ spec:
           ports:
             - name: grpc
               containerPort: 6000
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
           resources:
             requests:
               cpu: 25m
@@ -42,3 +60,30 @@ spec:
     - name: grpc
       port: 6000
       targetPort: 6000
+    - name: http
+      port: 8080
+      targetPort: 8080
+---
+# Scrape the scaler's own self-observability, not just the vLLM signals it
+# reads. interval matches this deployment's streamPollInterval/pollingInterval
+# (15s, see scaledobject-external.yaml) -- see
+# docs/autoscaling-signal-staleness.md for why that pairing was chosen. This
+# is the scaler's *own* process state, so a slower or faster scrape here
+# doesn't feed back into the control loop the way the vLLM PodMonitor's
+# interval does; it only affects how promptly scaler_signal_age_seconds and
+# friends show up on a dashboard.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: inference-scaler
+  namespace: inference
+  labels:
+    release: kube-prometheus-stack   # match your Prometheus' serviceMonitorSelector
+spec:
+  selector:
+    matchLabels:
+      app: inference-scaler
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s

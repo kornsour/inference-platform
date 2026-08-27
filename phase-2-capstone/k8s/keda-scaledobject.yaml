@@ -22,10 +22,19 @@ spec:
     name: qwen-vllm-predictor
   minReplicaCount: 1
   maxReplicaCount: 4
+  # 2x the 15s scrape interval (../k8s/podmonitor.yaml), stated explicitly
+  # rather than relying on KEDA's own (undocumented, easy to miss) 30s
+  # default -- never set it equal to the scrape interval, which risks
+  # repeatedly acting on the same Prometheus sample. See
+  # docs/autoscaling-signal-staleness.md for the derivation.
+  pollingInterval: 30
   cooldownPeriod: 120          # don't thrash; decode workloads are bursty
   advanced:
     horizontalPodAutoscalerConfig:
       behavior:
+        # 300s is well above the 2x-worst-case-signal-age floor (2*(15+30)=90s)
+        # docs/autoscaling-signal-staleness.md derives -- kept deliberately more
+        # conservative here, per this template's own "don't thrash" stance.
         scaleDown:
           stabilizationWindowSeconds: 300
   triggers:
