@@ -1,0 +1,32 @@
+apiVersion: v1
+items:
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-08-27T17:46:17Z"
+  involvedObject:
+    apiVersion: autoscaling/v2
+    kind: HorizontalPodAutoscaler
+    name: keda-hpa-mock-vllm-scaler
+    namespace: inference
+    resourceVersion: "1458"
+    uid: 7eac795b-9576-4c7d-9093-c2b296c17b65
+  kind: Event
+  lastTimestamp: "2026-08-27T17:46:17Z"
+  message: 'New size: 5; reason: external metric s0-prometheus(&LabelSelector{MatchLabels:map[string]string{scaledobject.keda.sh/name:
+    mock-vllm-scaler,},MatchExpressions:[]LabelSelectorRequirement{},}) above target'
+  metadata:
+    creationTimestamp: "2026-08-27T17:46:17Z"
+    name: keda-hpa-mock-vllm-scaler.18cfbaa10e1ba1fe
+    namespace: inference
+    resourceVersion: "8677"
+    uid: 32474878-d3df-4326-8033-a78e43345407
+  reason: SuccessfulRescale
+  reportingComponent: horizontal-pod-autoscaler
+  reportingInstance: ""
+  source:
+    component: horizontal-pod-autoscaler
+  type: Normal
+kind: List
+metadata:
+  resourceVersion: ""

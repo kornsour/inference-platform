@@ -77,6 +77,10 @@ autoscaler reacted to the **queue-depth** signal, exactly as designed. TTFT p95
 pegged the top histogram bucket (well over the 1 s SLO), firing
 `InferenceTTFTSLOBreach`.
 
+> **Raw run committed:** [`local/runs/2026-08-27-scale-out/`](local/runs/2026-08-27-scale-out/README.md) —
+> the `scale-demo.sh` stdout behind this table, plus the `SuccessfulRescale` event and
+> `describe hpa` at peak, with the exact date, cluster, and command line.
+
 **Routing matters as much as scaling.** The first run drove traffic via
 `kubectl port-forward`, which pins to a single pod, so the four new replicas
 sat idle and the queue kept growing despite the scale-out. Re-running with a

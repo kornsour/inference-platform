@@ -22,15 +22,17 @@
 
 ### Headline results — [full write-up](phase-2-capstone/WRITEUP.md)
 
-- **Autoscaling reacts to the right signal.** Under load, KEDA scaled the serving
-  Deployment **1 → 5 replicas** on queue depth; a load-balanced generator then put the
-  new replicas to work — the non-obvious lesson being that *routing matters as much as
-  scaling* (a `port-forward` pins one pod and starves the scale-out).
-- **Real two-GPU vLLM.** Qwen2.5-1.5B sustains **~2,600 tok/s** and stays compute-bound
-  (never trips the autoscaler); the 3B model's 8.5× smaller KV pool **does** trip the
-  KV-cache/queue trigger — the regime flip that motivates inference-aware scaling. Two
-  8 GB cards load-balanced to **~2,360 tok/s** aggregate; energy cost
-  **~$0.0015–0.005 / 1M tokens**.
+- **Autoscaling reacts to the right signal** *(local `kind` cluster, mock vLLM —
+  [raw run](phase-2-capstone/local/runs/2026-08-27-scale-out/README.md))*. Under load,
+  KEDA scaled the serving Deployment **1 → 5 replicas** on queue depth; a load-balanced
+  generator then put the new replicas to work — the non-obvious lesson being that
+  *routing matters as much as scaling* (a `port-forward` pins one pod and starves the
+  scale-out).
+- **Real two-GPU vLLM** *(DIY two-GPU cluster, real vLLM)*. Qwen2.5-1.5B sustains
+  **~2,600 tok/s** and stays compute-bound (never trips the autoscaler); the 3B model's
+  8.5× smaller KV pool **does** trip the KV-cache/queue trigger — the regime flip that
+  motivates inference-aware scaling. Two 8 GB cards load-balanced to **~2,360 tok/s**
+  aggregate; energy cost **~$0.0015–0.005 / 1M tokens**.
 - **KServe vs a plain Deployment.** Same engine, same throughput — KServe's cost is
   **operational, not runtime**.
 

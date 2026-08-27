@@ -1,0 +1,38 @@
+Name:                                      keda-hpa-mock-vllm-scaler
+Namespace:                                 inference
+Labels:                                    app.kubernetes.io/managed-by=keda-operator
+                                           app.kubernetes.io/name=keda-hpa-mock-vllm-scaler
+                                           app.kubernetes.io/part-of=mock-vllm-scaler
+                                           app.kubernetes.io/version=2.20.2
+                                           scaledobject.keda.sh/name=mock-vllm-scaler
+Annotations:                               <none>
+CreationTimestamp:                         Thu, 27 Aug 2026 12:41:43 -0400
+Reference:                                 Deployment/mock-vllm
+Metrics:                                   ( current / target )
+  "s0-prometheus" (target average value):  47400m / 3
+  "s1-prometheus" (target average value):  200m / 700m
+Min replicas:                              1
+Max replicas:                              5
+Behavior:
+  Scale Up:
+    Stabilization Window: 0 seconds
+    Select Policy: Max
+    Policies:
+      - Type: Pods     Value: 4    Period: 15 seconds
+      - Type: Percent  Value: 100  Period: 15 seconds
+  Scale Down:
+    Stabilization Window: 60 seconds
+    Select Policy: Max
+    Policies:
+      - Type: Percent  Value: 100  Period: 15 seconds
+Deployment pods:       5 current / 5 desired
+Conditions:
+  Type            Status  Reason            Message
+  ----            ------  ------            -------
+  AbleToScale     True    ReadyForNewScale  recommended size matches current size
+  ScalingActive   True    ValidMetricFound  the HPA was able to successfully calculate a replica count from external metric s0-prometheus(&LabelSelector{MatchLabels:map[string]string{scaledobject.keda.sh/name: mock-vllm-scaler,},MatchExpressions:[]LabelSelectorRequirement{},})
+  ScalingLimited  True    TooManyReplicas   the desired replica count is more than the maximum replica count
+Events:
+  Type    Reason             Age    From                       Message
+  ----    ------             ----   ----                       -------
+  Normal  SuccessfulRescale  2m24s  horizontal-pod-autoscaler  New size: 5; reason: external metric s0-prometheus(&LabelSelector{MatchLabels:map[string]string{scaledobject.keda.sh/name: mock-vllm-scaler,},MatchExpressions:[]LabelSelectorRequirement{},}) above target

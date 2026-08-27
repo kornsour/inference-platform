@@ -9,12 +9,15 @@ vLLM serving.
 
 ## Highlights
 
-- **Autoscaling reacts to the right signal.** Under load, KEDA scaled the serving
-  Deployment **1 → 5 replicas** on queue depth; routing traffic through a load balancer
-  is what actually put the new replicas to work. → [capstone write-up](phase-2-capstone/WRITEUP.md)
-- **Real two-GPU vLLM.** Qwen2.5-1.5B sustains **~2,600 tok/s** (compute-bound); the 3B
-  model's smaller KV pool trips the KV-cache/queue trigger — the regime flip that
-  inference-aware scaling is built for. → [real-GPU results](phase-2-capstone/gpu-node/real-gpu-results.md)
+- **Autoscaling reacts to the right signal** *(local `kind` cluster, mock vLLM)*. Under
+  load, KEDA scaled the serving Deployment **1 → 5 replicas** on queue depth; routing
+  traffic through a load balancer is what actually put the new replicas to work. →
+  [capstone write-up](phase-2-capstone/WRITEUP.md) ·
+  [raw run](phase-2-capstone/local/runs/2026-08-27-scale-out/README.md)
+- **Real two-GPU vLLM** *(DIY two-GPU cluster, real vLLM)*. Qwen2.5-1.5B sustains
+  **~2,600 tok/s** (compute-bound); the 3B model's smaller KV pool trips the
+  KV-cache/queue trigger — the regime flip that inference-aware scaling is built for. →
+  [real-GPU results](phase-2-capstone/gpu-node/real-gpu-results.md)
 - **A custom Go KEDA external scaler** on a composite queue-depth + KV-cache saturation
   metric, built and unit-tested in CI. → [the scaler](phase-2-capstone/keda-inference-scaler/README.md)
 
