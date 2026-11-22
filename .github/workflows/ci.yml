@@ -11,13 +11,13 @@ on:
       - "bootstrap/**"
       - ".github/workflows/ci.yml"
       - ".yamllint.yaml"
+  # No `paths:` filter on pull_request, on purpose. All four jobs below are
+  # REQUIRED status checks on main, and a path-filtered workflow that does not
+  # run reports nothing -- so a PR touching only docs, the README or another
+  # workflow waited forever for checks that never came and could only merge
+  # with --admin (seen on #29, 2026-11-22). Running the jobs on every PR is
+  # free on a public repo and takes a few minutes; `push` keeps its filter.
   pull_request:
-    paths:
-      - "phase-2-capstone/**"
-      - "phase-1-foundations/**.py"
-      - "bootstrap/**"
-      - ".github/workflows/ci.yml"
-      - ".yamllint.yaml"
 
 jobs:
   manifests:
